@@ -1,0 +1,31 @@
+# Zig
+zig-cache/
+zig-out/
+.zig-cache/
+
+# Executables
+mempalace
+
+# 
+benchmark/OmniVoice-Studio
+
+# IDE / OS
+.DS_Store
+.vscode/
+
+# Project Specific Testing / State
+tmp/
+scratch/
+test*/
+
+# Local Databases
+*.db
+*.db-shm
+*.db-wal
+zig-pkg/
+# Machine Learning Tensors / Models
+lib/*.gguf
+lib/llama.cpp/build/
+
+# External Configs mapping over default parameters
+mempalace.yaml
