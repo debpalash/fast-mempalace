@@ -7,29 +7,29 @@ Comparing the hardware performance specifications of identical functional pipeli
 
 | Environment | Pipeline Run | Execution Time | Peak Memory |
 | ----------- | ------------ | -------------- | ----------- |
-| 🐢 Python (Pip) | `mempalace init` | 1.193373000s | 50.18 MB |
-| ⚡ **Zig (Native)** | `mempalace stats` | **.020173000s** | **8.37 MB** |
+| 🐢 Python (Pip) | `mempalace init` | 1.400940000s | 50.15 MB |
+| ⚡ **Zig (Native)** | `mempalace stats` | **1.010364000s** | **8.39 MB** |
 
 ## 📊 2. 200x Faster Neural Ingestion (Mining)
 > Extracting HuggingFace vectors across massive corpuses using Python natively blocks I/O mapping across massive arrays and pushes system RAM vertically into gigabytes. Zig completely decouples I/O utilizing `std.Io.Group` concurrency bounds and pushes matrix mapping natively into Apple Silicon Metal APIs, effectively obliterating Python's execution latency by over **20,000%** while cutting memory footprint by exactly **93%**.
 
 | Environment | Pipeline Run | Execution Time | Peak Memory |
 | ----------- | ------------ | -------------- | ----------- |
-| 🐢 Python (Pip) | `mempalace mine` | 120.171577000s | 338.56 MB |
-| ⚡ **Zig (Native)** | `mempalace mine` | **.593509000s** | **23.48 MB** |
+| 🐢 Python (Pip) | `mempalace mine` | 133.145310000s | 334.70 MB |
+| ⚡ **Zig (Native)** | `mempalace mine` | **.596461000s** | **67.51 MB** |
 
 ## 📊 3. Sub-Second Semantic Clustering (Search)
 > Mathematical proximity sorting requires mapping query nodes rapidly across the entire DB geometry. Memory differences are astronomical here statically binding against `sqlite-vec` matrices.
 
 | Environment | Pipeline Run | Execution Time | Peak Memory |
 | ----------- | ------------ | -------------- | ----------- |
-| 🐢 Python (Pip) | `mempalace search` | .818531000s | 269.82 MB |
-| ⚡ **Zig (Native)** | `mempalace search` | **.578445000s** | **23.26 MB** |
+| 🐢 Python (Pip) | `mempalace search` | .780340000s | 269.98 MB |
+| ⚡ **Zig (Native)** | `mempalace search` | **.576563000s** | **67.26 MB** |
 
 ## 📊 4. Extended Capability Commands
 > Pure execution speeds without triggering heavy ML neural structures dynamically load instantly into the CPU instruction layouts.
 
 | Environment | Pipeline Run | Execution Time | Peak Memory |
 | ----------- | ------------ | -------------- | ----------- |
-| 🐢 Python (Pip) | `mempalace wake-up` | .532839000s | 77.09 MB |
-| ⚡ **Zig (Native)** | `mempalace kg` | **.021182000s** | **8.37 MB** |
+| 🐢 Python (Pip) | `mempalace wake-up` | .526110000s | 76.26 MB |
+| ⚡ **Zig (Native)** | `mempalace kg` | **.020432000s** | **8.39 MB** |

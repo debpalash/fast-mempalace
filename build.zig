@@ -56,6 +56,12 @@ pub fn build(b: *std.Build) void {
         exe.root_module.linkFramework("Foundation", .{});
     }
 
+    // ── Llama.cpp Static Libraries ──
+    // These must be pre-built via cmake before running `zig build`.
+    // First-time setup (documented in README):
+    //   cd lib/llama.cpp && mkdir -p build && cd build
+    //   cmake .. -DGGML_METAL=ON -DCMAKE_BUILD_TYPE=Release && cmake --build . -j8
+
     b.installArtifact(exe);
 
     // ── Run step ──
