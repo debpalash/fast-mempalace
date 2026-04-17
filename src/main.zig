@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════
-// mempalace — Local-first AI Memory System (Zig 0.16)
+// fast-mempalace — Local-first AI Memory System (Zig 0.16)
 // ═══════════════════════════════════════════════════════════════════
 
 const std = @import("std");
@@ -34,9 +34,9 @@ pub fn main(init: std.process.Init) !void {
     } else if (std.mem.eql(u8, command, "mine")) {
         try embedder.initGlobal(cfg.model_path);
         defer embedder.deinitGlobal();
-        
+
         const path = args_it.next() orelse {
-            std.debug.print("Usage: mempalace mine <path> [wing]\n", .{});
+            std.debug.print("Usage: fast-mempalace mine <path> [wing]\n", .{});
             return;
         };
         const wing = args_it.next() orelse cfg.default_wing;
@@ -44,9 +44,9 @@ pub fn main(init: std.process.Init) !void {
     } else if (std.mem.eql(u8, command, "search")) {
         try embedder.initGlobal(cfg.model_path);
         defer embedder.deinitGlobal();
-        
+
         const query = args_it.next() orelse {
-            std.debug.print("Usage: mempalace search <query>\n", .{});
+            std.debug.print("Usage: fast-mempalace search <query>\n", .{});
             return;
         };
         try cmdSearch(query, &cfg, allocator, init.io);
@@ -65,7 +65,7 @@ pub fn main(init: std.process.Init) !void {
     } else if (std.mem.eql(u8, command, "mcp")) {
         try embedder.initGlobal(cfg.model_path);
         defer embedder.deinitGlobal();
-        
+
         try mcp.serve(allocator, &cfg, init.io);
     } else {
         std.debug.print("Unknown command: {s}\n", .{command});
@@ -76,18 +76,18 @@ pub fn main(init: std.process.Init) !void {
 fn printUsage() void {
     std.debug.print(
         \\
-        \\  🏛️  mempalace — Local-first AI Memory System (Zig Native Engine)
+        \\  🏛️  fast-mempalace — Local-first AI Memory System (Zig Native Engine)
         \\
         \\  Usage:
-        \\    mempalace init                  Initialize palace database
-        \\    mempalace mine <path> [wing]    Mine files into the palace
-        \\    mempalace search <query>        Semantic search
-        \\    mempalace stats                 Palace statistics
-        \\    mempalace kg [subject]          Query knowledge graph
-        \\    mempalace wake-up [--wing X]    Show L0+L1 wake-up context
-        \\    mempalace hook                  Run hook (JSON stdin/stdout)
-        \\    mempalace instructions          Output skill instructions
-        \\    mempalace mcp                   Start MCP JSON-RPC server
+        \\    fast-mempalace init                  Initialize palace database
+        \\    fast-mempalace mine <path> [wing]    Mine files into the palace
+        \\    fast-mempalace search <query>        Semantic search
+        \\    fast-mempalace stats                 Palace statistics
+        \\    fast-mempalace kg [subject]          Query knowledge graph
+        \\    fast-mempalace wake-up [--wing X]    Show L0+L1 wake-up context
+        \\    fast-mempalace hook                  Run hook (JSON stdin/stdout)
+        \\    fast-mempalace instructions          Output skill instructions
+        \\    fast-mempalace mcp                   Start MCP JSON-RPC server
         \\
     , .{});
 }
@@ -97,7 +97,7 @@ fn openDb(cfg: *const config.Config) !db.Database {
 }
 
 fn cmdInit(cfg: *const config.Config) !void {
-    std.debug.print("Initializing MemPalace database...\n", .{});
+    std.debug.print("Initializing Fast MemPalace database...\n", .{});
     var database = try openDb(cfg);
     defer database.close();
     database.createPalaceSchema();
@@ -232,24 +232,24 @@ fn cmdHook(cfg: *const config.Config, allocator: std.mem.Allocator) !void {
 
 fn cmdInstructions() void {
     const instructions =
-        \\# MemPalace — Skill Instructions
+        \\# Fast MemPalace — Skill Instructions
         \\
-        \\You have access to a local-first AI memory system called MemPalace.
+        \\You have access to a local-first AI memory system called Fast MemPalace.
         \\It stores verbatim content organized into Wings (projects/people),
         \\Rooms (topics), and Drawers (content chunks).
         \\
         \\## Available Tools
-        \\- `mempalace search "<query>"` — Semantic search across all memories
-        \\- `mempalace wake-up` — Load L0+L1 context (~600-900 tokens)
-        \\- `mempalace wake-up --wing <name>` — Scoped wake-up for a project
-        \\- `mempalace mine <path>` — Ingest files into the palace
-        \\- `mempalace kg <subject>` — Query the knowledge graph
-        \\- `mempalace stats` — Show palace statistics
+        \\- `fast-mempalace search "<query>"` — Semantic search across all memories
+        \\- `fast-mempalace wake-up` — Load L0+L1 context (~600-900 tokens)
+        \\- `fast-mempalace wake-up --wing <name>` — Scoped wake-up for a project
+        \\- `fast-mempalace mine <path>` — Ingest files into the palace
+        \\- `fast-mempalace kg <subject>` — Query the knowledge graph
+        \\- `fast-mempalace stats` — Show palace statistics
         \\
         \\## Best Practices
-        \\1. Always run `mempalace wake-up` at session start
-        \\2. Use `mempalace search` before answering questions about past work
-        \\3. Store important decisions with `mempalace mine`
+        \\1. Always run `fast-mempalace wake-up` at session start
+        \\2. Use `fast-mempalace search` before answering questions about past work
+        \\3. Store important decisions with `fast-mempalace mine`
         \\4. Keep the knowledge graph updated for entity relationships
         \\
         \\Nothing leaves the local machine. No API keys required.
@@ -263,7 +263,7 @@ fn cmdInstructions() void {
 // Requires tests cleanly resolving inside explicitly referenced files
 // ═══════════════════════════════════════════════════════════════════
 
-test "mempalace unified testing suite" {
+test "fast-mempalace unified testing suite" {
     _ = @import("db.zig");
     // Add additional explicit module testing dependencies below here
 }

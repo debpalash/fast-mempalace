@@ -2,21 +2,21 @@ const std = @import("std");
 
 pub const Config = struct {
     default_wing: [:0]const u8 = "default",
-    database_path: [:0]const u8 = "mempalace.db",
+    database_path: [:0]const u8 = "fast-mempalace.db",
     model_path: [:0]const u8 = "lib/minilm.gguf",
     auto_accept_entities: bool = false,
     ignore_patterns: [][]const u8 = &[_][]const u8{},
-    
+
     pub fn deinit(self: *Config, allocator: std.mem.Allocator) void {
         for (self.ignore_patterns) |pat| {
             allocator.free(pat);
         }
         allocator.free(self.ignore_patterns);
-        
+
         if (!std.mem.eql(u8, self.default_wing, "default")) {
             allocator.free(self.default_wing);
         }
-        if (!std.mem.eql(u8, self.database_path, "mempalace.db")) {
+        if (!std.mem.eql(u8, self.database_path, "fast-mempalace.db")) {
             allocator.free(self.database_path);
         }
         if (!std.mem.eql(u8, self.model_path, "lib/minilm.gguf")) {
@@ -25,13 +25,16 @@ pub const Config = struct {
     }
 };
 
-/// Attempt to load mempalace.yaml from the current directory, or fallback to defaults
+/// Attempt to load config from the current directory. Tries `fast-mempalace.yaml`
+/// first, then falls back to `mempalace.yaml` for drop-in compatibility with the
+/// legacy Python package. Returns defaults if neither exists.
 pub fn load(allocator: std.mem.Allocator, io: std.Io) !Config {
-    var file = std.Io.Dir.cwd().openFile(io, "mempalace.yaml", .{}) catch |err| {
-        if (err == error.FileNotFound) {
-            return Config{};
-        }
-        return err;
+    var file = std.Io.Dir.cwd().openFile(io, "fast-mempalace.yaml", .{}) catch |err1| blk: {
+        if (err1 != error.FileNotFound) return err1;
+        break :blk std.Io.Dir.cwd().openFile(io, "mempalace.yaml", .{}) catch |err2| {
+            if (err2 == error.FileNotFound) return Config{};
+            return err2;
+        };
     };
     defer file.close(io);
 
@@ -68,7 +71,7 @@ pub fn load(allocator: std.mem.Allocator, io: std.Io) !Config {
         } else if (std.mem.startsWith(u8, line, "database_path:")) {
             in_ignore_patterns = false;
             const val = extractYamlValue(line["database_path:".len..]);
-            if (val.len > 0 and !std.mem.eql(u8, val, "mempalace.db")) {
+            if (val.len > 0 and !std.mem.eql(u8, val, "fast-mempalace.db")) {
                 cfg.database_path = try allocator.dupeZ(u8, val);
             }
         } else if (std.mem.startsWith(u8, line, "model_path:")) {

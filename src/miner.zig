@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════
-// mempalace/miner.zig — Content Mining Engine
+// fast-mempalace/miner.zig — Content Mining Engine
 //
 // Ingests project files and conversation exports into the palace.
 // Handles chunking, deduplication, and room auto-detection.

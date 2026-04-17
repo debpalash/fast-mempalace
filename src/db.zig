@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════
-// mempalace/db.zig — SQLite + sqlite-vec database engine
+// fast-mempalace/db.zig — SQLite + sqlite-vec database engine
 //
 // Provides the storage backbone: verbatim text in relational tables,
 // vector embeddings in sqlite-vec virtual tables, and temporal

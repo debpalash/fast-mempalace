@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
-# MemPalace installer — fetches prebuilt native binary + embedding model.
+# Fast MemPalace installer — fetches prebuilt native binary + embedding model.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/MemPalace/mempalace/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/MemPalace/fast-mempalace/main/install.sh | bash
 #
 # Env overrides:
-#   MEMPALACE_VERSION   Release tag to install (default: latest)
-#   MEMPALACE_INSTALL   Install prefix (default: $HOME/.mempalace)
-#   MEMPALACE_REPO      GitHub repo (default: MemPalace/mempalace)
-#   MEMPALACE_NO_MODEL  Skip GGUF embedding model download (default: 0)
+#   FAST_MEMPALACE_VERSION   Release tag to install (default: latest)
+#   FAST_MEMPALACE_INSTALL   Install prefix (default: $HOME/.fast-mempalace)
+#   FAST_MEMPALACE_REPO      GitHub repo (default: MemPalace/fast-mempalace)
+#   FAST_MEMPALACE_NO_MODEL  Skip GGUF embedding model download (default: 0)
 
 set -euo pipefail
 
-REPO="${MEMPALACE_REPO:-MemPalace/mempalace}"
-VERSION="${MEMPALACE_VERSION:-latest}"
-INSTALL_DIR="${MEMPALACE_INSTALL:-$HOME/.mempalace}"
+REPO="${FAST_MEMPALACE_REPO:-MemPalace/fast-mempalace}"
+VERSION="${FAST_MEMPALACE_VERSION:-latest}"
+INSTALL_DIR="${FAST_MEMPALACE_INSTALL:-$HOME/.fast-mempalace}"
 BIN_DIR="$INSTALL_DIR/bin"
 LIB_DIR="$INSTALL_DIR/lib"
 MODEL_URL="https://huggingface.co/nomic-ai/nomic-embed-text-v1.5-GGUF/resolve/main/nomic-embed-text-v1.5.f16.gguf"
@@ -68,7 +68,7 @@ download() {
 
 install_binary() {
   local platform="$1"
-  local tarball="mempalace-${platform}.tar.gz"
+  local tarball="fast-mempalace-${platform}.tar.gz"
   local url="https://github.com/$REPO/releases/download/$VERSION/$tarball"
   local tmp
   tmp=$(mktemp -d)
@@ -77,14 +77,14 @@ install_binary() {
   mkdir -p "$BIN_DIR"
   download "$url" "$tmp/$tarball"
   tar -xzf "$tmp/$tarball" -C "$tmp"
-  [ -f "$tmp/mempalace" ] || die "tarball missing 'mempalace' binary"
-  install -m 755 "$tmp/mempalace" "$BIN_DIR/mempalace"
-  ok "installed $BIN_DIR/mempalace"
+  [ -f "$tmp/fast-mempalace" ] || die "tarball missing 'fast-mempalace' binary"
+  install -m 755 "$tmp/fast-mempalace" "$BIN_DIR/fast-mempalace"
+  ok "installed $BIN_DIR/fast-mempalace"
 }
 
 install_model() {
-  if [ "${MEMPALACE_NO_MODEL:-0}" = "1" ]; then
-    warn "skipping embedding model download (MEMPALACE_NO_MODEL=1)"
+  if [ "${FAST_MEMPALACE_NO_MODEL:-0}" = "1" ]; then
+    warn "skipping embedding model download (FAST_MEMPALACE_NO_MODEL=1)"
     return
   fi
   mkdir -p "$LIB_DIR"
@@ -107,7 +107,7 @@ shell_hint() {
   esac
 
   echo
-  printf "%bMemPalace installed to%b %s\n" "$C_BOLD" "$C_RESET" "$INSTALL_DIR"
+  printf "%bFast MemPalace installed to%b %s\n" "$C_BOLD" "$C_RESET" "$INSTALL_DIR"
   echo
   printf "%bNext step:%b add to PATH\n\n" "$C_BOLD" "$C_RESET"
   if [ "$shell_name" = "fish" ]; then
@@ -116,7 +116,9 @@ shell_hint() {
     printf "  echo 'export PATH=\"%s:\$PATH\"' >> %s\n" "$BIN_DIR" "$shell_rc"
     printf "  source %s\n\n" "$shell_rc"
   fi
-  printf "%bQuick check:%b\n\n  mempalace stats\n\n" "$C_BOLD" "$C_RESET"
+  printf "%bQuick check:%b\n\n  fast-mempalace stats\n\n" "$C_BOLD" "$C_RESET"
+  printf "%bOptional drop-in alias%b (keeps legacy scripts working):\n\n  ln -s %s/fast-mempalace %s/mempalace\n\n" \
+    "$C_BOLD" "$C_RESET" "$BIN_DIR" "$BIN_DIR"
   printf "%bDocs:%b https://github.com/%s\n" "$C_DIM" "$C_RESET" "$REPO"
 }
 

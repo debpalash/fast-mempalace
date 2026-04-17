@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════
-// mempalace/embedder.zig — Vector Embedding
+// fast-mempalace/embedder.zig — Vector Embedding
 //
 // Placeholder for Phase 2: GGML / ONNX Runtime integration.
 // Currently returns a dummy uniform vector for testing.

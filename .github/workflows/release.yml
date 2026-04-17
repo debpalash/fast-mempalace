@@ -56,24 +56,24 @@ jobs:
         run: zig build --release=fast
 
       - name: Smoke test
-        run: ./zig-out/bin/mempalace stats || true
+        run: ./zig-out/bin/fast-mempalace stats || true
 
       - name: Package tarball
         env:
           TARGET: ${{ matrix.target }}
         run: |
-          TARBALL="mempalace-${TARGET}.tar.gz"
-          tar -czf "$TARBALL" -C zig-out/bin mempalace
+          TARBALL="fast-mempalace-${TARGET}.tar.gz"
+          tar -czf "$TARBALL" -C zig-out/bin fast-mempalace
           shasum -a 256 "$TARBALL" > "$TARBALL.sha256"
           ls -lh "$TARBALL" "$TARBALL.sha256"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: mempalace-${{ matrix.target }}
+          name: fast-mempalace-${{ matrix.target }}
           path: |
-            mempalace-${{ matrix.target }}.tar.gz
-            mempalace-${{ matrix.target }}.tar.gz.sha256
+            fast-mempalace-${{ matrix.target }}.tar.gz
+            fast-mempalace-${{ matrix.target }}.tar.gz.sha256
 
   release:
     name: Publish GitHub Release
@@ -88,8 +88,6 @@ jobs:
 
       - name: Create release
         uses: softprops/action-gh-release@v2
-        env:
-          REPO: ${{ github.repository }}
         with:
           files: |
             dist/*.tar.gz
@@ -99,7 +97,7 @@ jobs:
             Install with one line:
 
             ```bash
-            curl -fsSL https://raw.githubusercontent.com/MemPalace/mempalace/main/install.sh | bash
+            curl -fsSL https://raw.githubusercontent.com/MemPalace/fast-mempalace/main/install.sh | bash
             ```
 
             Prebuilt binaries attached for darwin-aarch64, darwin-x86_64, linux-x86_64, linux-aarch64.

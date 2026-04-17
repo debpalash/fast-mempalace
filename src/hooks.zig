@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════
-// mempalace/hooks.zig — Claude Code / Codex Hook Protocol
+// fast-mempalace/hooks.zig — Claude Code / Codex Hook Protocol
 //
 // Reads JSON from stdin, outputs JSON to stdout.
 // Implements the session-start, stop, and precompact hooks
@@ -20,18 +20,18 @@ const c_io = @cImport({
 });
 
 const STOP_BLOCK_REASON =
-    \\AUTO-SAVE checkpoint (MemPalace). Save this session's key content:
-    \\1. mempalace_diary_write — session summary
-    \\2. mempalace_add_drawer — verbatim quotes, decisions, code snippets
-    \\3. mempalace_kg_add — entity relationships (optional)
+    \\AUTO-SAVE checkpoint (Fast MemPalace). Save this session's key content:
+    \\1. fast_mempalace_diary_write — session summary
+    \\2. fast_mempalace_add_drawer — verbatim quotes, decisions, code snippets
+    \\3. fast_mempalace_kg_add — entity relationships (optional)
     \\Continue conversation after saving.
 ;
 
 const PRECOMPACT_BLOCK_REASON =
-    \\COMPACTION IMMINENT (MemPalace). Save ALL session content before context is lost:
-    \\1. mempalace_diary_write — thorough session summary
-    \\2. mempalace_add_drawer — ALL verbatim quotes, decisions, code, context
-    \\3. mempalace_kg_add — entity relationships (optional)
+    \\COMPACTION IMMINENT (Fast MemPalace). Save ALL session content before context is lost:
+    \\1. fast_mempalace_diary_write — thorough session summary
+    \\2. fast_mempalace_add_drawer — ALL verbatim quotes, decisions, code, context
+    \\3. fast_mempalace_kg_add — entity relationships (optional)
     \\Be thorough — after compaction, detailed context will be lost.
 ;
 

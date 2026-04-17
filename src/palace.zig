@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════
-// mempalace/palace.zig — Palace Engine
+// fast-mempalace/palace.zig — Palace Engine
 //
 // The core "memory palace" abstraction. Content is organized into:
 //   Wing  → A project, person, or top-level domain

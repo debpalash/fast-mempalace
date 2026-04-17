@@ -59,7 +59,7 @@ pub fn serve(allocator: std.mem.Allocator, cfg: *const config.Config, io: std.Io
                         \\    "tools": {}
                         \\  },
                         \\  "serverInfo": {
-                        \\    "name": "mempalace",
+                        \\    "name": "fast-mempalace",
                         \\    "version": "1.0.0"
                         \\  }
                         \\}
@@ -72,7 +72,7 @@ pub fn serve(allocator: std.mem.Allocator, cfg: *const config.Config, io: std.Io
                         \\{
                         \\  "tools": [
                         \\    {
-                        \\      "name": "mempalace_search",
+                        \\      "name": "fast_mempalace_search",
                         \\      "description": "Searches the AI memory palace for relevant context.",
                         \\      "inputSchema": {
                         \\        "type": "object",

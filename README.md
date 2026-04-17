@@ -1,114 +1,104 @@
 <div align="center">
-  <img src="assets/logo.svg" alt="MemPalace Logo" width="350"/>
-  <h1>MemPalace (Zig Native Engine)</h1>
-  <p><b>The 200x Faster Drop-In Replacement for the Python MemPalace Package.</b></p>
+  <img src="assets/logo.svg" alt="Fast MemPalace Logo" width="350"/>
+  <h1>fast-mempalace</h1>
+  <p><b>The 200× faster, zero-dependency Zig rewrite of the Python <code>mempalace</code> package.</b></p>
 </div>
-
-<br/>
-
-**MemPalace-Zig** is a completely native, statically linked architectural rewrite of the legacy `mempalace` Pip module. By stripping out `ChromaDB`, `Pydantic`, and standard Python I/O bottlenecks, this native engine reads your existing `mempalace.yaml` and executes the exact same CLI commands—while drastically collapsing extraction times from **minutes to milliseconds.**
-
-## ⚡ Install in One Line
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/MemPalace/mempalace/main/install.sh | bash
-```
-
-Detects your platform (darwin/linux × arm64/x86_64), downloads the prebuilt native binary from the latest GitHub Release, and fetches the embedding model into `~/.mempalace`. No Python, no virtualenv, no package manager.
-
-Prefer building from source? See [Build from source](#-build-from-source-zero-to-native-in-30-seconds) below.
-
-## 🎯 The Drop-In Guarantee
-
-You do not need to alter your workflow or change your configurations. If you previously used:
-
-```bash
-pip install mempalace
-mempalace mine ./repository
-```
-
-Swap to the zero-dependency native binary:
-
-```bash
-pip uninstall mempalace
-curl -fsSL https://raw.githubusercontent.com/MemPalace/mempalace/main/install.sh | bash
-```
-
-Now `mempalace mine ./repository` natively executes with a 93% reduction in RAM usage, instantly booting neural embeddings onto Apple Silicon or CUDA GPU pipelines over `sqlite-vec`.
 
 ---
 
-## 🚀 The Architecture (Phase 2)
+`fast-mempalace` is a native, statically linked rewrite of the legacy Python [`mempalace`](https://pypi.org/project/mempalace/) package. It reads the same `mempalace.yaml`, exposes the same command surface, and collapses extraction times from **minutes to milliseconds** by replacing `ChromaDB` + `Pydantic` + Python I/O with `sqlite-vec` + `llama.cpp` + `std.Io.Group`.
 
-MemPalace explicitly abandons bloated Python toolchains, Bazel compilation layers, and opaque runtime servers in favor of mathematical hardware isolation:
+## ⚡ Install in one line
 
-* **Zero-Dependency Core:** Everything maps cleanly against standard `zig build`.
-* **Sub-Millisecond Retrieval:** Powered by `sqlite-vec` natively memory-mapped using `PRAGMA mmap_size=512MB` for instant semantic clustering.
-* **Bare-Metal Vector Generation:** `llama.cpp` is linked *statically* via CMake natively inside `build.zig`, ensuring 100% pure hardware execution on **Apple Silicon (Metal)** and **Linux (CUDA)** without external bridging plugins.
-* **Concurrent Mining:** Dynamic multi-threading file processing pipelines built with Zig's bleeding-edge `std.Io.Group` arrays.
-* **Native HTTP LLM Reranking:** Leverages `std.http.Client` natively against local LLM backends (like Ollama) to re-score vector clusters instantly.
-
-## ⚡ The 200x Performance Benchmark
-
-To showcase the explicit power of a natively compiled memory pipeline against traditional Python ingestion scripting, we measured localized repository crawling across a standard corpus (`97 indexing files / ~400MB`). The benchmark pits the legacy **Python `mempalace` Pip Wheel** directly against the new **Native Zig 0.16.0 Binaries**.
-
-### 1. 20-Millisecond Cold Starts (Zero ML Overhead)
-By completely isolating the LLM neural boot sequence away from lightweight vector queries, `mempalace` now boots natively into CPU cache over **5,000% faster** than Python's dependency tree!
-
-| Architecture | Setup (`mempalace init/stats`) | Peak Memory |
-| ------------ | ------------------------------ | ----------------- |
-| 🐢 Python (Pip) | `1.201 seconds` | `50.15 MB` |
-| **⚡ Zig Native** | **`0.020 seconds` (20ms)** | **`8.39 MB`** |
-
-### 2. 20,000% Faster Neural Extraction (`mempalace mine`)
-Python heavily blocks I/O operations and bloats standard RAM when pushing tensors natively across `ChromaDB`. Zig executes concurrency directly on the Apple Metal APIs via `std.Io.Group`, slicing execution time exponentially down to the absolute core hardware constraints.
-
-| Architecture | Pipeline Extraction | Peak Memory |
-| ------------ | ------------------- | ----------------- |
-| 🐢 Python (Pip) | `121.86 seconds` | `321.36 MB` |
-| **⚡ Zig Native** | **`0.59 seconds`** | **`23.64 MB`** |
-
-### 3. Sub-Second Semantic Retrieval (`mempalace search`)
-When doing cosine similarity math across dimensions, reducing runtime memory limits latency. Zig executes operations natively against local `sqlite-vec` mappings instantly.
-
-| Architecture | Similarity Querying | Peak Memory |
-| ------------ | ------------------- | ----------------- |
-| 🐢 Python (Pip) | `0.79 seconds` | `272.37 MB` |
-| **⚡ Zig Native** | **`0.57 seconds`** | **`23.31 MB`** |
-
-> [!CAUTION]
-> **What this means for production:** The legacy Python architecture required 300+ MB of RAM just to stay alive during parsing, effectively blocking synchronous execution for up to 2 minutes. The Native Zig toolchain bootstraps neural boundaries under exactly ~23 MB of RAM and executes mathematically completely transparent in the background in less than a single second.
-
-## 📦 Build from source (Zero to Native in 30 Seconds)
-
-### 1. Clone with Full Native Hooks
-The neural pipelines rely on specific optimized architectures tracking directly inside Git submodules (`llama.cpp`).
 ```bash
-git clone --recursive https://github.com/MemPalace/mempalace
-cd mempalace
+curl -fsSL https://raw.githubusercontent.com/MemPalace/fast-mempalace/main/install.sh | bash
 ```
 
-### 2. Lock-In the Hardware Embedding Model
-MemPalace dynamically relies on the lightning-fast `all-MiniLM-L6-v2` GGUF matrix (22MB). You must download the actual neural weights into the `lib/` directory so the memory boundaries can initialize.
+Detects your platform (`darwin|linux` × `x86_64|aarch64`), downloads the prebuilt native binary from the latest GitHub Release, and stores the embedding model in `~/.fast-mempalace/`. No Python, no virtualenv, no package manager.
+
+## 🎯 Drop-in replacement
+
+`fast-mempalace` reads the same `mempalace.yaml` config your Python scripts already use. Migrate in two lines:
+
 ```bash
-mkdir -p lib
-curl -L -o lib/minilm.gguf "https://huggingface.co/nomic-ai/nomic-embed-text-v1.5-GGUF/resolve/main/nomic-embed-text-v1.5.f16.gguf"
+pip uninstall mempalace
+curl -fsSL https://raw.githubusercontent.com/MemPalace/fast-mempalace/main/install.sh | bash
 ```
 
-### 3. Build & Metal Compilation
-The custom `build.zig` system natively compiles the `llama.cpp` static components and bridges the SQLite vector architecture all seamlessly.
-*(Requires: `zig 0.16.0` and `cmake`)*
+Optional — alias the binary so legacy scripts calling `mempalace` keep working:
 
 ```bash
-# Automatically triggers CMake generation and maps the hardware execution graph!
+ln -s ~/.fast-mempalace/bin/fast-mempalace ~/.fast-mempalace/bin/mempalace
+```
+
+## 🚀 Architecture
+
+- **Zero-dependency core** — single static binary, `zig build` only.
+- **Sub-millisecond retrieval** — `sqlite-vec` memory-mapped at `PRAGMA mmap_size=512MB`.
+- **Bare-metal embeddings** — `llama.cpp` linked statically; Apple Silicon (Metal) or CUDA.
+- **Concurrent mining** — Zig `std.Io.Group` parallelism across file processing.
+- **Local LLM reranker** — `std.http.Client` against Ollama / any local endpoint.
+
+## 📊 Benchmarks
+
+Real numbers against the Python `mempalace` Pip package on identical workloads. Hardware: Apple M2, macOS.
+
+### Cold starts
+
+| Engine | Command | Time | Peak RAM |
+| ------ | ------- | ---- | -------- |
+| 🐢 `mempalace` (Python) | `mempalace init` | 1.40 s | 50.15 MB |
+| ⚡ `fast-mempalace` (Zig) | `fast-mempalace stats` | **0.01 s** | **8.40 MB** |
+
+### Mining — corpus from [OmniVoice-studio](https://github.com/debpalash/OmniVoice-Studio) (A Cinematic audio dubbing, Cloning and voice generation studio)
+
+| Engine | Command | Time | Peak RAM |
+| ------ | ------- | ---- | -------- |
+| 🐢 `mempalace` (Python) | `mempalace mine` | ~2 min (blocks on ChromaDB) | ~320 MB |
+| ⚡ `fast-mempalace` (Zig) | `fast-mempalace mine` | **0.59 s** | **95 MB** |
+
+### Semantic search
+
+| Engine | Command | Time | Peak RAM |
+| ------ | ------- | ---- | -------- |
+| 🐢 `mempalace` (Python) | `mempalace search` | 0.78 s | 270 MB |
+| ⚡ `fast-mempalace` (Zig) | `fast-mempalace search` | **0.59 s** | **94 MB** |
+
+Full methodology + additional commands in [`BENCHMARK.md`](./BENCHMARK.md).
+
+## 📦 Commands
+
+```text
+fast-mempalace init                  Initialize palace database
+fast-mempalace mine <path> [wing]    Mine files into the palace
+fast-mempalace search <query>        Semantic search
+fast-mempalace stats                 Palace statistics
+fast-mempalace kg [subject]          Query knowledge graph
+fast-mempalace wake-up [--wing X]    Show L0+L1 wake-up context
+fast-mempalace hook                  Run hook (JSON stdin/stdout)
+fast-mempalace instructions          Output skill instructions
+fast-mempalace mcp                   Start MCP JSON-RPC server
+```
+
+## 🔧 Build from source
+
+Requires `zig 0.16.0` and `cmake`.
+
+```bash
+git clone --recursive https://github.com/MemPalace/fast-mempalace
+cd fast-mempalace
+mkdir -p lib && curl -L -o lib/minilm.gguf \
+  "https://huggingface.co/nomic-ai/nomic-embed-text-v1.5-GGUF/resolve/main/nomic-embed-text-v1.5.f16.gguf"
 zig build --release=fast
+./zig-out/bin/fast-mempalace stats
 ```
 
-### 4. Configuration (`mempalace.yaml`)
-Backwards compatible configuration block natively bypassing generic dependencies.
+## ⚙️ Configuration (`fast-mempalace.yaml` or `mempalace.yaml`)
+
+Drop-in compatible with the Python package. The binary searches for `fast-mempalace.yaml` first, then falls back to `mempalace.yaml`.
 
 ```yaml
-database_path: "mempalace.db"
+database_path: "fast-mempalace.db"
 model_path: "lib/minilm.gguf"
 default_wing: "production"
 ignore_patterns:
@@ -116,23 +106,9 @@ ignore_patterns:
   - ".zig-cache"
 ```
 
-### 5. Launch Extraction
-Launch the concurrent tokenizer buffer targeting your raw codebase.
-```bash
-./zig-out/bin/mempalace mine /path/to/codebase
-```
-
-### 6. Search Vectors
-Run native vector-distance SQL commands mathematically against local data.
-```bash
-./zig-out/bin/mempalace search "Where is the HTTP reranker configured?"
-```
-
----
-
 ## 🗺️ Roadmap
 
-Parity milestones and the features we plan to push past the upstream Python tool live in [`ROADMAP.md`](./ROADMAP.md).
+Parity + outmatch milestones in [`ROADMAP.md`](./ROADMAP.md).
 
 ## 📄 License
 
