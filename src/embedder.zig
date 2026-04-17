@@ -22,7 +22,9 @@ pub const Embedder = struct {
     pub fn init(model_path: [:0]const u8) !Embedder {
         c.llama_backend_init();
 
-        const params = c.llama_model_default_params();
+        var params = c.llama_model_default_params();
+        params.n_gpu_layers = 99;
+        params.use_mmap = false;
         const model = c.llama_model_load_from_file(model_path.ptr, params) orelse return error.ModelLoadFailed;
 
         const ctx_params = c.llama_context_default_params();

@@ -18,12 +18,6 @@ pub fn main(init: std.process.Init) !void {
     var cfg = config.load(allocator, init.io) catch config.Config{};
     defer cfg.deinit(allocator);
 
-    embedder.initGlobal(cfg.model_path) catch |err| {
-        std.debug.print("Failed to initialize embedder context with model {s}: {}\n", .{cfg.model_path, err});
-        return err;
-    };
-    defer embedder.deinitGlobal();
-
     var args_it = try std.process.Args.Iterator.initAllocator(init.minimal.args, allocator);
     defer args_it.deinit();
     _ = args_it.next(); // skip argv[0] (program name)
@@ -36,6 +30,9 @@ pub fn main(init: std.process.Init) !void {
     if (std.mem.eql(u8, command, "init")) {
         try cmdInit(&cfg);
     } else if (std.mem.eql(u8, command, "mine")) {
+        try embedder.initGlobal(cfg.model_path);
+        defer embedder.deinitGlobal();
+        
         const path = args_it.next() orelse {
             std.debug.print("Usage: mempalace mine <path> [wing]\n", .{});
             return;
@@ -43,6 +40,9 @@ pub fn main(init: std.process.Init) !void {
         const wing = args_it.next() orelse cfg.default_wing;
         try cmdMine(init.io, path, wing, &cfg, allocator);
     } else if (std.mem.eql(u8, command, "search")) {
+        try embedder.initGlobal(cfg.model_path);
+        defer embedder.deinitGlobal();
+        
         const query = args_it.next() orelse {
             std.debug.print("Usage: mempalace search <query>\n", .{});
             return;
@@ -54,6 +54,9 @@ pub fn main(init: std.process.Init) !void {
         const subject = args_it.next();
         try cmdKnowledgeGraph(subject, &cfg, allocator);
     } else if (std.mem.eql(u8, command, "mcp")) {
+        try embedder.initGlobal(cfg.model_path);
+        defer embedder.deinitGlobal();
+        
         try mcp.serve(allocator, &cfg, init.io);
     } else {
         std.debug.print("Unknown command: {s}\n", .{command});

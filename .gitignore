@@ -6,9 +6,6 @@ zig-out/
 # Executables
 mempalace
 
-# 
-benchmark/OmniVoice-Studio
-
 # IDE / OS
 .DS_Store
 .vscode/
@@ -17,6 +14,7 @@ benchmark/OmniVoice-Studio
 tmp/
 scratch/
 test*/
+benchmark/
 
 # Local Databases
 *.db
