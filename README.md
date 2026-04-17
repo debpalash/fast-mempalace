@@ -116,8 +116,18 @@ Launch the concurrent tokenizer buffer targeting your raw codebase.
 ./zig-out/bin/mempalace mine /path/to/codebase
 ```
 
-### 4. Search Vectors
+### 6. Search Vectors
 Run native vector-distance SQL commands mathematically against local data.
 ```bash
 ./zig-out/bin/mempalace search "Where is the HTTP reranker configured?"
 ```
+
+---
+
+## 🗺️ Roadmap
+
+Parity milestones and the features we plan to push past the upstream Python tool live in [`ROADMAP.md`](./ROADMAP.md).
+
+## 📄 License
+
+[MIT](./LICENSE) — ship it, fork it, vendor it.
