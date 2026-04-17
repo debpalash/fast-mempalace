@@ -10,10 +10,21 @@
 # Mirrors .github/workflows/build.yml (Linux leg) so "passes locally"
 # means "passes on GH Actions Ubuntu runner".
 
-FROM ubuntu:24.04
+# BUILDPLATFORM = the host running docker (e.g. linux/arm64 on an M-series Mac).
+# We build for it directly so qemu emulation doesn't segfault the Zig runner.
+# On GitHub Actions ubuntu-latest this resolves to linux/amd64 automatically.
+FROM --platform=$BUILDPLATFORM ubuntu:24.04
 
+ARG BUILDPLATFORM
+ARG TARGETPLATFORM
 ARG ZIG_VERSION=0.16.0
-ARG ZIG_ARCH=x86_64
+
+# Derive ZIG_ARCH from BUILDPLATFORM (amd64 → x86_64, arm64 → aarch64).
+RUN case "$(uname -m)" in \
+      x86_64|amd64)  echo "x86_64"  > /tmp/zig-arch ;; \
+      aarch64|arm64) echo "aarch64" > /tmp/zig-arch ;; \
+      *) echo "unsupported arch: $(uname -m)" >&2; exit 2 ;; \
+    esac && cat /tmp/zig-arch
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PATH="/opt/zig:${PATH}"
@@ -27,9 +38,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       git \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Zig exactly like mlugg/setup-zig does on the runner.
-RUN curl -fsSL "https://ziglang.org/download/${ZIG_VERSION}/zig-linux-${ZIG_ARCH}-${ZIG_VERSION}.tar.xz" \
-      -o /tmp/zig.tar.xz \
+# Install Zig from ziglang.org (same binaries mlugg/setup-zig pulls).
+# Canonical URL form: zig-<arch>-<os>-<version>.tar.xz (arch first).
+RUN ZIG_ARCH=$(cat /tmp/zig-arch) \
+    && curl -fsSL "https://ziglang.org/download/${ZIG_VERSION}/zig-${ZIG_ARCH}-linux-${ZIG_VERSION}.tar.xz" \
+         -o /tmp/zig.tar.xz \
     && mkdir -p /opt/zig \
     && tar -xJf /tmp/zig.tar.xz -C /opt/zig --strip-components=1 \
     && rm /tmp/zig.tar.xz \
@@ -38,9 +51,27 @@ RUN curl -fsSL "https://ziglang.org/download/${ZIG_VERSION}/zig-linux-${ZIG_ARCH
 WORKDIR /src
 COPY . /src
 
-# Mirror the workflow steps: fetch GGUF, compile release, run stats.
+# Mirror the workflow steps: fetch GGUF, build llama.cpp statics, compile.
 RUN mkdir -p lib && curl -fL -o lib/minilm.gguf \
       "https://huggingface.co/nomic-ai/nomic-embed-text-v1.5-GGUF/resolve/main/nomic-embed-text-v1.5.f16.gguf"
+
+# Pre-build llama.cpp static libraries (build.zig links against them).
+# GH Actions skips this because its jobs run a separate cmake step when
+# needed; Docker reproduction forces the rebuild to match host arch.
+RUN if [ -f lib/llama.cpp/CMakeLists.txt ]; then \
+      rm -rf lib/llama.cpp/build \
+      && cmake -S lib/llama.cpp -B lib/llama.cpp/build \
+           -DCMAKE_BUILD_TYPE=Release \
+           -DGGML_METAL=OFF \
+           -DGGML_BLAS=OFF \
+           -DLLAMA_BUILD_TESTS=OFF \
+           -DLLAMA_BUILD_EXAMPLES=OFF \
+           -DLLAMA_BUILD_SERVER=OFF \
+      && cmake --build lib/llama.cpp/build -j"$(nproc)"; \
+    else \
+      echo "!! lib/llama.cpp submodule is empty — run 'git submodule update --init --recursive' before building" >&2; \
+      exit 1; \
+    fi
 
 RUN zig build --release=fast
 

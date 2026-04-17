@@ -27,8 +27,7 @@ jobs:
 
       - name: Install Dependencies (macOS)
         if: runner.os == 'macOS'
-        run: |
-          brew install cmake
+        run: brew install cmake
 
       - name: Install Dependencies (Ubuntu)
         if: runner.os == 'Linux'
@@ -40,6 +39,26 @@ jobs:
         run: |
           mkdir -p lib
           curl -L -o lib/minilm.gguf "https://huggingface.co/nomic-ai/nomic-embed-text-v1.5-GGUF/resolve/main/nomic-embed-text-v1.5.f16.gguf"
+
+      - name: Build llama.cpp Static Libraries
+        run: |
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            cmake -S lib/llama.cpp -B lib/llama.cpp/build \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DGGML_METAL=ON \
+              -DLLAMA_BUILD_TESTS=OFF \
+              -DLLAMA_BUILD_EXAMPLES=OFF \
+              -DLLAMA_BUILD_SERVER=OFF
+          else
+            cmake -S lib/llama.cpp -B lib/llama.cpp/build \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DGGML_METAL=OFF \
+              -DGGML_BLAS=OFF \
+              -DLLAMA_BUILD_TESTS=OFF \
+              -DLLAMA_BUILD_EXAMPLES=OFF \
+              -DLLAMA_BUILD_SERVER=OFF
+          fi
+          cmake --build lib/llama.cpp/build -j
 
       - name: Compile Native Vector Pipelines (ReleaseFast)
         run: zig build --release=fast

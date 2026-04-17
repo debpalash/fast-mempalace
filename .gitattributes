@@ -1,0 +1,13 @@
+# GitHub Linguist: exclude vendored C from language stats.
+# lib/ contains sqlite-vec (amalgamation) and the llama.cpp submodule —
+# neither is authored by this project.
+lib/**           linguist-vendored
+lib/*.c          linguist-vendored
+lib/*.h          linguist-vendored
+lib/llama.cpp/** linguist-vendored
+
+# GGUF weights are binary blobs.
+*.gguf binary
+
+# Zig source is the actual project code.
+*.zig linguist-detectable
