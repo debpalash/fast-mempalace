@@ -41,30 +41,36 @@ ln -s ~/.fast-mempalace/bin/fast-mempalace ~/.fast-mempalace/bin/mempalace
 
 ## 📊 Benchmarks
 
-Real numbers against the Python `mempalace` Pip package on identical workloads. Hardware: Apple M2, macOS.
+<div align="center">
 
-### Cold starts
+**Apple M2 · macOS · cold runs · identical workloads**
 
-| Engine | Command | Time | Peak RAM |
-| ------ | ------- | ---- | -------- |
-| 🐢 `mempalace` (Python) | `mempalace init` | 1.40 s | 50.15 MB |
-| ⚡ `fast-mempalace` (Zig) | `fast-mempalace stats` | **0.01 s** | **8.40 MB** |
+| | 🐢 Python `mempalace` | ⚡ Zig `fast-mempalace` | Speedup | Less RAM |
+|:--|:--:|:--:|:--:|:--:|
+| **Cold start** <br/> `init` / `stats` | `1.40 s` <br/> `50 MB` | **`0.01 s`** <br/> **`8 MB`** | **140×** | **6×** |
+| **Mine** <br/> 450 KB · 1 171 drawers | `~120 s` <br/> `320 MB` | **`0.59 s`** <br/> **`95 MB`** | **203×** | **3.4×** |
+| **Search** <br/> semantic query | `0.78 s` <br/> `270 MB` | **`0.59 s`** <br/> **`94 MB`** | `1.3×` | **2.9×** |
+| **Wake-up / kg** <br/> context load | `0.53 s` <br/> `76 MB` | **`0.02 s`** <br/> **`8 MB`** | **26×** | **9×** |
 
-### Mining — corpus from [OmniVoice-studio](https://github.com/debpalash/OmniVoice-Studio) (A Cinematic audio dubbing, Cloning and voice generation studio)
+</div>
 
-| Engine | Command | Time | Peak RAM |
-| ------ | ------- | ---- | -------- |
-| 🐢 `mempalace` (Python) | `mempalace mine` | ~2 min (blocks on ChromaDB) | ~320 MB |
-| ⚡ `fast-mempalace` (Zig) | `fast-mempalace mine` | **0.59 s** | **95 MB** |
+### Relative timing (lower = faster)
 
-### Semantic search
+```
+Cold start     🐢 ████████████████████ 1.40 s
+                ⚡ ▏                    0.01 s
 
-| Engine | Command | Time | Peak RAM |
-| ------ | ------- | ---- | -------- |
-| 🐢 `mempalace` (Python) | `mempalace search` | 0.78 s | 270 MB |
-| ⚡ `fast-mempalace` (Zig) | `fast-mempalace search` | **0.59 s** | **94 MB** |
+Mine           🐢 ████████████████████ 120 s
+                ⚡ ▏                    0.59 s
 
-Full methodology + additional commands in [`BENCHMARK.md`](./BENCHMARK.md).
+Search         🐢 ████████████████████ 0.78 s
+                ⚡ ███████████████      0.59 s
+
+Wake-up / kg   🐢 ████████████████████ 0.53 s
+                ⚡ ▏                    0.02 s
+```
+
+Mining corpus: [OmniVoice-Studio](https://github.com/debpalash/OmniVoice-Studio) — cinematic audio dubbing, cloning, and voice generation studio. Full methodology, reproduction steps, and extended commands in [`BENCHMARK.md`](./BENCHMARK.md).
 
 ## 📦 Commands
 
