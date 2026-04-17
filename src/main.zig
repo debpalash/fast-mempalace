@@ -11,6 +11,8 @@ const embedder = @import("embedder.zig");
 const knowledge = @import("knowledge.zig");
 const config = @import("config.zig");
 const mcp = @import("mcp.zig");
+const wakeup = @import("wakeup.zig");
+const hooks = @import("hooks.zig");
 
 /// Zig 0.16 "Juicy Main" — receives allocator, args, IO from the runtime.
 pub fn main(init: std.process.Init) !void {
@@ -53,6 +55,13 @@ pub fn main(init: std.process.Init) !void {
     } else if (std.mem.eql(u8, command, "kg")) {
         const subject = args_it.next();
         try cmdKnowledgeGraph(subject, &cfg, allocator);
+    } else if (std.mem.eql(u8, command, "wake-up")) {
+        const wing = args_it.next();
+        try cmdWakeUp(wing, &cfg, allocator);
+    } else if (std.mem.eql(u8, command, "hook")) {
+        try cmdHook(&cfg, allocator);
+    } else if (std.mem.eql(u8, command, "instructions")) {
+        cmdInstructions();
     } else if (std.mem.eql(u8, command, "mcp")) {
         try embedder.initGlobal(cfg.model_path);
         defer embedder.deinitGlobal();
@@ -67,7 +76,7 @@ pub fn main(init: std.process.Init) !void {
 fn printUsage() void {
     std.debug.print(
         \\
-        \\  🏛️  mempalace — Local-first AI Memory System
+        \\  🏛️  mempalace — Local-first AI Memory System (Zig Native Engine)
         \\
         \\  Usage:
         \\    mempalace init                  Initialize palace database
@@ -75,6 +84,10 @@ fn printUsage() void {
         \\    mempalace search <query>        Semantic search
         \\    mempalace stats                 Palace statistics
         \\    mempalace kg [subject]          Query knowledge graph
+        \\    mempalace wake-up [--wing X]    Show L0+L1 wake-up context
+        \\    mempalace hook                  Run hook (JSON stdin/stdout)
+        \\    mempalace instructions          Output skill instructions
+        \\    mempalace mcp                   Start MCP JSON-RPC server
         \\
     , .{});
 }
@@ -196,5 +209,62 @@ fn cmdKnowledgeGraph(subject: ?[:0]const u8, cfg: *const config.Config, allocato
             r.subject, r.predicate, r.object, r.confidence,
         });
     }
+}
+
+fn cmdWakeUp(wing: ?[:0]const u8, cfg: *const config.Config, allocator: std.mem.Allocator) !void {
+    var database = try openDb(cfg);
+    defer database.close();
+
+    const wing_slice: ?[]const u8 = if (wing) |w| w[0..w.len] else null;
+    const context = try wakeup.generate(&database, wing_slice, allocator);
+    defer allocator.free(context);
+
+    std.debug.print("{s}", .{context});
+}
+
+fn cmdHook(cfg: *const config.Config, allocator: std.mem.Allocator) !void {
+    var database = try openDb(cfg);
+    defer database.close();
+    database.createPalaceSchema();
+
+    try hooks.processHook(&database, allocator);
+}
+
+fn cmdInstructions() void {
+    const instructions =
+        \\# MemPalace — Skill Instructions
+        \\
+        \\You have access to a local-first AI memory system called MemPalace.
+        \\It stores verbatim content organized into Wings (projects/people),
+        \\Rooms (topics), and Drawers (content chunks).
+        \\
+        \\## Available Tools
+        \\- `mempalace search "<query>"` — Semantic search across all memories
+        \\- `mempalace wake-up` — Load L0+L1 context (~600-900 tokens)
+        \\- `mempalace wake-up --wing <name>` — Scoped wake-up for a project
+        \\- `mempalace mine <path>` — Ingest files into the palace
+        \\- `mempalace kg <subject>` — Query the knowledge graph
+        \\- `mempalace stats` — Show palace statistics
+        \\
+        \\## Best Practices
+        \\1. Always run `mempalace wake-up` at session start
+        \\2. Use `mempalace search` before answering questions about past work
+        \\3. Store important decisions with `mempalace mine`
+        \\4. Keep the knowledge graph updated for entity relationships
+        \\
+        \\Nothing leaves the local machine. No API keys required.
+        \\
+    ;
+    std.debug.print("{s}", .{instructions});
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Testing Suite Entrypoint
+// Requires tests cleanly resolving inside explicitly referenced files
+// ═══════════════════════════════════════════════════════════════════
+
+test "mempalace unified testing suite" {
+    _ = @import("db.zig");
+    // Add additional explicit module testing dependencies below here
 }
 
