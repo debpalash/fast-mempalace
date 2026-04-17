@@ -56,7 +56,7 @@ ln -s ~/.fast-mempalace/bin/fast-mempalace ~/.fast-mempalace/bin/mempalace
 
 ### Relative timing (lower = faster)
 
-```
+```text
 Cold start     🐢 ████████████████████ 1.40 s
                 ⚡ ▏                    0.01 s
 
