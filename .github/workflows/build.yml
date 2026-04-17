@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [ main, master ]
 
+env:
+  ZIG_VERSION: "0.16.0"
+
 jobs:
   build:
     name: Build & Test on ${{ matrix.os }}
@@ -20,10 +23,24 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Setup Zig 0.16.0
-        uses: mlugg/setup-zig@v1
-        with:
-          version: 0.16.0
+      - name: Install Zig 0.16.0 (direct from ziglang.org)
+        run: |
+          set -eux
+          case "$(uname -s)" in
+            Linux)  ZIG_OS="linux" ;;
+            Darwin) ZIG_OS="macos" ;;
+          esac
+          case "$(uname -m)" in
+            x86_64|amd64)  ZIG_ARCH="x86_64" ;;
+            aarch64|arm64) ZIG_ARCH="aarch64" ;;
+          esac
+          URL="https://ziglang.org/download/${ZIG_VERSION}/zig-${ZIG_ARCH}-${ZIG_OS}-${ZIG_VERSION}.tar.xz"
+          echo "Downloading $URL"
+          curl -fsSL "$URL" -o /tmp/zig.tar.xz
+          sudo mkdir -p /opt/zig
+          sudo tar -xJf /tmp/zig.tar.xz -C /opt/zig --strip-components=1
+          sudo ln -sf /opt/zig/zig /usr/local/bin/zig
+          zig version
 
       - name: Install Dependencies (macOS)
         if: runner.os == 'macOS'

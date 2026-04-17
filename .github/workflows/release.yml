@@ -31,10 +31,25 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Setup Zig 0.16.0
-        uses: mlugg/setup-zig@v1
-        with:
-          version: 0.16.0
+      - name: Install Zig 0.16.0 (direct from ziglang.org)
+        env:
+          ZIG_VERSION: "0.16.0"
+        run: |
+          set -eux
+          case "$(uname -s)" in
+            Linux)  ZIG_OS="linux" ;;
+            Darwin) ZIG_OS="macos" ;;
+          esac
+          case "$(uname -m)" in
+            x86_64|amd64)  ZIG_ARCH="x86_64" ;;
+            aarch64|arm64) ZIG_ARCH="aarch64" ;;
+          esac
+          URL="https://ziglang.org/download/${ZIG_VERSION}/zig-${ZIG_ARCH}-${ZIG_OS}-${ZIG_VERSION}.tar.xz"
+          curl -fsSL "$URL" -o /tmp/zig.tar.xz
+          sudo mkdir -p /opt/zig
+          sudo tar -xJf /tmp/zig.tar.xz -C /opt/zig --strip-components=1
+          sudo ln -sf /opt/zig/zig /usr/local/bin/zig
+          zig version
 
       - name: Install dependencies (macOS)
         if: startsWith(matrix.target, 'darwin')
@@ -51,6 +66,26 @@ jobs:
           mkdir -p lib
           curl -L -o lib/minilm.gguf \
             "https://huggingface.co/nomic-ai/nomic-embed-text-v1.5-GGUF/resolve/main/nomic-embed-text-v1.5.f16.gguf"
+
+      - name: Build llama.cpp static libraries
+        run: |
+          if [ "$(uname -s)" = "Darwin" ]; then
+            cmake -S lib/llama.cpp -B lib/llama.cpp/build \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DGGML_METAL=ON \
+              -DLLAMA_BUILD_TESTS=OFF \
+              -DLLAMA_BUILD_EXAMPLES=OFF \
+              -DLLAMA_BUILD_SERVER=OFF
+          else
+            cmake -S lib/llama.cpp -B lib/llama.cpp/build \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DGGML_METAL=OFF \
+              -DGGML_BLAS=OFF \
+              -DLLAMA_BUILD_TESTS=OFF \
+              -DLLAMA_BUILD_EXAMPLES=OFF \
+              -DLLAMA_BUILD_SERVER=OFF
+          fi
+          cmake --build lib/llama.cpp/build -j
 
       - name: Build release
         run: zig build --release=fast
