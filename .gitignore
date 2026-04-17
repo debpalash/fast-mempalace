@@ -27,3 +27,4 @@ lib/llama.cpp/build/
 
 # External Configs mapping over default parameters
 mempalace.yaml
+lib/llama.cpp

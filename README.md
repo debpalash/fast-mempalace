@@ -1,5 +1,3 @@
-# 🏛️ MemPalace
-
 <div align="center">
   <img src="assets/logo.svg" alt="MemPalace Logo" width="350"/>
   <h1>MemPalace (Zig Native Engine)</h1>
@@ -10,25 +8,33 @@
 
 **MemPalace-Zig** is a completely native, statically linked architectural rewrite of the legacy `mempalace` Pip module. By stripping out `ChromaDB`, `Pydantic`, and standard Python I/O bottlenecks, this native engine reads your existing `mempalace.yaml` and executes the exact same CLI commands—while drastically collapsing extraction times from **minutes to milliseconds.**
 
+## ⚡ Install in One Line
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/MemPalace/mempalace/main/install.sh | bash
+```
+
+Detects your platform (darwin/linux × arm64/x86_64), downloads the prebuilt native binary from the latest GitHub Release, and fetches the embedding model into `~/.mempalace`. No Python, no virtualenv, no package manager.
+
+Prefer building from source? See [Build from source](#-build-from-source-zero-to-native-in-30-seconds) below.
+
 ## 🎯 The Drop-In Guarantee
-You do not need to alter your workflow or change your configurations.
-If you previously used:
+
+You do not need to alter your workflow or change your configurations. If you previously used:
+
 ```bash
 pip install mempalace
 mempalace mine ./repository
 ```
-You can seamlessly swap to this completely zero-dependency native binary by securely mounting it directly into your global system path:
+
+Swap to the zero-dependency native binary:
+
 ```bash
-# 1. Clear out the bloated machine learning Python package
 pip uninstall mempalace
-
-# 2. Compile lightning-fast locally (No virtual environments needed)
-zig build --release=fast
-
-# 3. Mount natively into your terminal globally
-sudo cp zig-out/bin/mempalace /usr/local/bin/
+curl -fsSL https://raw.githubusercontent.com/MemPalace/mempalace/main/install.sh | bash
 ```
-Now, `mempalace mine ./repository` natively executes globally with a 93% reduction in mathematical RAM usage, instantly booting neural embeddings natively onto Apple Silicon or CUDA GPU pipelines over `sqlite-vec`.
+
+Now `mempalace mine ./repository` natively executes with a 93% reduction in RAM usage, instantly booting neural embeddings onto Apple Silicon or CUDA GPU pipelines over `sqlite-vec`.
 
 ---
 
@@ -73,7 +79,7 @@ When doing cosine similarity math across dimensions, reducing runtime memory lim
 > [!CAUTION]
 > **What this means for production:** The legacy Python architecture required 300+ MB of RAM just to stay alive during parsing, effectively blocking synchronous execution for up to 2 minutes. The Native Zig toolchain bootstraps neural boundaries under exactly ~23 MB of RAM and executes mathematically completely transparent in the background in less than a single second.
 
-## 📦 Usage (Zero to Native in 30 Seconds)
+## 📦 Build from source (Zero to Native in 30 Seconds)
 
 ### 1. Clone with Full Native Hooks
 The neural pipelines rely on specific optimized architectures tracking directly inside Git submodules (`llama.cpp`).

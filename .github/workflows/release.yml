@@ -1,0 +1,105 @@
+name: Release Binaries
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: darwin-aarch64
+            runner: macos-latest
+          - target: darwin-x86_64
+            runner: macos-13
+          - target: linux-x86_64
+            runner: ubuntu-latest
+          - target: linux-aarch64
+            runner: ubuntu-24.04-arm
+
+    steps:
+      - name: Checkout source (recursive)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Zig 0.16.0
+        uses: mlugg/setup-zig@v1
+        with:
+          version: 0.16.0
+
+      - name: Install dependencies (macOS)
+        if: startsWith(matrix.target, 'darwin')
+        run: brew install cmake
+
+      - name: Install dependencies (Linux)
+        if: startsWith(matrix.target, 'linux')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential
+
+      - name: Download embedding model
+        run: |
+          mkdir -p lib
+          curl -L -o lib/minilm.gguf \
+            "https://huggingface.co/nomic-ai/nomic-embed-text-v1.5-GGUF/resolve/main/nomic-embed-text-v1.5.f16.gguf"
+
+      - name: Build release
+        run: zig build --release=fast
+
+      - name: Smoke test
+        run: ./zig-out/bin/mempalace stats || true
+
+      - name: Package tarball
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          TARBALL="mempalace-${TARGET}.tar.gz"
+          tar -czf "$TARBALL" -C zig-out/bin mempalace
+          shasum -a 256 "$TARBALL" > "$TARBALL.sha256"
+          ls -lh "$TARBALL" "$TARBALL.sha256"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mempalace-${{ matrix.target }}
+          path: |
+            mempalace-${{ matrix.target }}.tar.gz
+            mempalace-${{ matrix.target }}.tar.gz.sha256
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        env:
+          REPO: ${{ github.repository }}
+        with:
+          files: |
+            dist/*.tar.gz
+            dist/*.sha256
+          generate_release_notes: true
+          body: |
+            Install with one line:
+
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/MemPalace/mempalace/main/install.sh | bash
+            ```
+
+            Prebuilt binaries attached for darwin-aarch64, darwin-x86_64, linux-x86_64, linux-aarch64.
