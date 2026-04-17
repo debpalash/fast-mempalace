@@ -1,0 +1,48 @@
+name: Zig Native Matrix (CI)
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    name: Build & Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+
+    steps:
+      - name: Checkout Source (Recursive)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Zig 0.16.0
+        uses: mlugg/setup-zig@v1
+        with:
+          version: 0.16.0
+
+      - name: Install Dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install cmake
+
+      - name: Install Dependencies (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential
+
+      - name: Download Neural Matrix (GGUF)
+        run: |
+          mkdir -p lib
+          curl -L -o lib/minilm.gguf "https://huggingface.co/nomic-ai/nomic-embed-text-v1.5-GGUF/resolve/main/nomic-embed-text-v1.5.f16.gguf"
+
+      - name: Compile Native Vector Pipelines (ReleaseFast)
+        run: zig build --release=fast
+
+      - name: Execute CLI Validation
+        run: ./zig-out/bin/mempalace stats

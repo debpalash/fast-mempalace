@@ -254,3 +254,87 @@ pub fn columnBlob(stmt: ?*Stmt, col: c_int) ?[]const u8 {
     if (ptr == null or len == 0) return null;
     return @as([*]const u8, @ptrCast(ptr))[0..len];
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// Automated Testing Suite
+// ═══════════════════════════════════════════════════════════════════
+
+test "database initialization and pragma mapping" {
+    // Isolated Test Boundaries guarantees no collisions with active db natively seamlessly
+    var database = Database.open(":memory:") catch |err| {
+        std.debug.print("Failed to open isolated test DB: {}\n", .{err});
+        return err;
+    };
+    defer database.close();
+
+    database.createPalaceSchema();
+
+    // Verify sqlite-vec loaded natively without segfaults
+    const check_stmt = database.prepare("SELECT vec_version()");
+    defer finalize(check_stmt);
+    try std.testing.expect(check_stmt != null);
+
+    const step_res = step(check_stmt);
+    try std.testing.expectEqual(SQLITE_ROW, step_res);
+
+    const version_str = columnText(check_stmt, 0);
+    try std.testing.expect(version_str != null);
+}
+
+test "vector insertion and euclidean retrieval" {
+    var database = try Database.open(":memory:");
+    defer database.close();
+
+    database.createPalaceSchema();
+
+    // 1. Insert Synthetic Mock Vectors (Dim 384)
+    var vec1: [384]f32 = undefined;
+    var vec2: [384]f32 = undefined;
+    for (0..384) |i| {
+        vec1[i] = 0.5; // Flat line
+        vec2[i] = 1.0; // Higher magnitude line
+    }
+
+    const insert_stmt = database.prepare("INSERT INTO vec_drawers(id, embedding) VALUES (?, ?)");
+    defer finalize(insert_stmt);
+    try std.testing.expect(insert_stmt != null);
+
+    // Insert vec1 as ID 1
+    bindInt(insert_stmt, 1, 1);
+    bindBlob(insert_stmt, 2, std.mem.sliceAsBytes(vec1[0..]));
+    try std.testing.expectEqual(SQLITE_DONE, step(insert_stmt));
+    reset(insert_stmt);
+
+    // Insert vec2 as ID 2
+    bindInt(insert_stmt, 1, 2);
+    bindBlob(insert_stmt, 2, std.mem.sliceAsBytes(vec2[0..]));
+    try std.testing.expectEqual(SQLITE_DONE, step(insert_stmt));
+
+    // 2. Query Euclidean (L2) Distance Math
+    // Distance between [0.5...] and [1.0...] should mathematically rank ID 2 as functionally more distant from [0.0...] than vec1.
+    // Let's search using vec1 exactly — distance to vec1 should be 0.0 mathematically. Wait, floating point math.
+    const search_stmt = database.prepare(
+        \\SELECT id, distance 
+        \\FROM vec_drawers 
+        \\WHERE embedding MATCH ? 
+        \\ORDER BY distance ASC LIMIT 2
+    );
+    defer finalize(search_stmt);
+    try std.testing.expect(search_stmt != null);
+
+    bindBlob(search_stmt, 1, std.mem.sliceAsBytes(vec1[0..]));
+
+    // First Result should mathematically be ID 1 with a distance extremely close to 0.0
+    var step_res = step(search_stmt);
+    try std.testing.expectEqual(SQLITE_ROW, step_res);
+    try std.testing.expectEqual(@as(i32, 1), columnInt(search_stmt, 0));
+    
+    // Distance floats might have microscopic FP errors, so expect less than 0.001
+    const dist1 = columnDouble(search_stmt, 1);
+    try std.testing.expect(dist1 < 0.001);
+
+    // Second Result should be ID 2
+    step_res = step(search_stmt);
+    try std.testing.expectEqual(SQLITE_ROW, step_res);
+    try std.testing.expectEqual(@as(i32, 2), columnInt(search_stmt, 0));
+}
