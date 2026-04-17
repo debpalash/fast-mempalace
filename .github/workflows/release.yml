@@ -72,6 +72,7 @@ jobs:
           if [ "$(uname -s)" = "Darwin" ]; then
             cmake -S lib/llama.cpp -B lib/llama.cpp/build \
               -DCMAKE_BUILD_TYPE=Release \
+              -DBUILD_SHARED_LIBS=OFF \
               -DGGML_METAL=ON \
               -DLLAMA_BUILD_TESTS=OFF \
               -DLLAMA_BUILD_EXAMPLES=OFF \
@@ -79,6 +80,7 @@ jobs:
           else
             cmake -S lib/llama.cpp -B lib/llama.cpp/build \
               -DCMAKE_BUILD_TYPE=Release \
+              -DBUILD_SHARED_LIBS=OFF \
               -DGGML_METAL=OFF \
               -DGGML_BLAS=OFF \
               -DLLAMA_BUILD_TESTS=OFF \

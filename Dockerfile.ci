@@ -62,6 +62,7 @@ RUN if [ -f lib/llama.cpp/CMakeLists.txt ]; then \
       rm -rf lib/llama.cpp/build \
       && cmake -S lib/llama.cpp -B lib/llama.cpp/build \
            -DCMAKE_BUILD_TYPE=Release \
+           -DBUILD_SHARED_LIBS=OFF \
            -DGGML_METAL=OFF \
            -DGGML_BLAS=OFF \
            -DLLAMA_BUILD_TESTS=OFF \
@@ -72,6 +73,13 @@ RUN if [ -f lib/llama.cpp/CMakeLists.txt ]; then \
       echo "!! lib/llama.cpp submodule is empty — run 'git submodule update --init --recursive' before building" >&2; \
       exit 1; \
     fi
+
+# Sanity check: confirm static libs landed where build.zig expects.
+RUN find lib/llama.cpp/build -name '*.a' -print | head -20 \
+    && for lib in libllama.a libggml.a libggml-base.a libggml-cpu.a; do \
+         find lib/llama.cpp/build -name "$lib" -print -quit | grep -q . \
+           || { echo "ERROR: $lib missing" >&2; exit 1; }; \
+       done
 
 RUN zig build --release=fast
 
