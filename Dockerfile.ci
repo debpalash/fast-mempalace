@@ -1,0 +1,47 @@
+# Dockerfile.ci — local mirror of the Ubuntu GitHub Actions build matrix.
+#
+# Usage:
+#   docker build -f Dockerfile.ci -t fast-mempalace-ci .
+#   docker run --rm fast-mempalace-ci
+#
+# Or via the helper:
+#   ./scripts/ci-local.sh
+#
+# Mirrors .github/workflows/build.yml (Linux leg) so "passes locally"
+# means "passes on GH Actions Ubuntu runner".
+
+FROM ubuntu:24.04
+
+ARG ZIG_VERSION=0.16.0
+ARG ZIG_ARCH=x86_64
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PATH="/opt/zig:${PATH}"
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ca-certificates \
+      curl \
+      xz-utils \
+      cmake \
+      build-essential \
+      git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Zig exactly like mlugg/setup-zig does on the runner.
+RUN curl -fsSL "https://ziglang.org/download/${ZIG_VERSION}/zig-linux-${ZIG_ARCH}-${ZIG_VERSION}.tar.xz" \
+      -o /tmp/zig.tar.xz \
+    && mkdir -p /opt/zig \
+    && tar -xJf /tmp/zig.tar.xz -C /opt/zig --strip-components=1 \
+    && rm /tmp/zig.tar.xz \
+    && zig version
+
+WORKDIR /src
+COPY . /src
+
+# Mirror the workflow steps: fetch GGUF, compile release, run stats.
+RUN mkdir -p lib && curl -fL -o lib/minilm.gguf \
+      "https://huggingface.co/nomic-ai/nomic-embed-text-v1.5-GGUF/resolve/main/nomic-embed-text-v1.5.f16.gguf"
+
+RUN zig build --release=fast
+
+CMD ["./zig-out/bin/fast-mempalace", "stats"]

@@ -15,7 +15,7 @@ Python carries ~1 s of `chromadb` + `pydantic` parse overhead before any DB work
 
 ## 2. Neural ingestion — OmniVoice corpus
 
-Corpus from the [OmniVoice](https://github.com/nineninesevenfour/OmniVoice-Studio) repo — all `.py`, `.md`, `.yaml`, `.toml` files concatenated (**450 368 bytes across 56 files → 1 171 drawers**). Apples-to-apples: same bytes, same embedder, same drawer-chunking.
+Corpus from the [OmniVoice](https://github.com/debpalash/OmniVoice-Studio) repo — all `.py`, `.md`, `.yaml`, `.toml` files concatenated (**450 368 bytes across 56 files → 1 171 drawers**). Apples-to-apples: same bytes, same embedder, same drawer-chunking.
 
 | Engine | Command | Time | Peak RAM |
 | ------ | ------- | ---- | -------- |

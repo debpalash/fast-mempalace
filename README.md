@@ -84,6 +84,16 @@ fast-mempalace instructions          Output skill instructions
 fast-mempalace mcp                   Start MCP JSON-RPC server
 ```
 
+## 🐳 Local CI (Docker)
+
+Mirror the Ubuntu GitHub Actions leg locally before pushing:
+
+```bash
+./scripts/ci-local.sh
+```
+
+Requires Docker daemon. Builds `Dockerfile.ci` → runs smoke test.
+
 ## 🔧 Build from source
 
 Needs `zig 0.16.0` + `cmake`.
