@@ -52,12 +52,27 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake build-essential
 
+      - name: Resolve llama.cpp submodule SHA (cache key)
+        id: llama_sha
+        run: |
+          SHA=$(git -C lib/llama.cpp rev-parse HEAD)
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "llama.cpp @ $SHA"
+
+      - name: Cache llama.cpp build output
+        id: cache_llama
+        uses: actions/cache@v4
+        with:
+          path: lib/llama.cpp/build
+          key: llama-cpp-${{ runner.os }}-${{ runner.arch }}-${{ steps.llama_sha.outputs.sha }}-v1
+
       - name: Download Neural Matrix (GGUF)
         run: |
           mkdir -p lib
           curl -L -o lib/minilm.gguf "https://huggingface.co/nomic-ai/nomic-embed-text-v1.5-GGUF/resolve/main/nomic-embed-text-v1.5.f16.gguf"
 
       - name: Build llama.cpp Static Libraries
+        if: steps.cache_llama.outputs.cache-hit != 'true'
         run: |
           if [ "${{ runner.os }}" = "macOS" ]; then
             cmake -S lib/llama.cpp -B lib/llama.cpp/build \
