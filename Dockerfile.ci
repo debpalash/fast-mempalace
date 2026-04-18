@@ -89,4 +89,4 @@ RUN find lib/llama.cpp/build -name '*.a' -print | head -20 \
 
 RUN zig build --release=fast
 
-CMD ["./zig-out/bin/fast-mempalace", "stats"]
+CMD ["sh", "-c", "./zig-out/bin/fast-mempalace init && ./zig-out/bin/fast-mempalace stats"]

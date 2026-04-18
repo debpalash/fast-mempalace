@@ -110,7 +110,9 @@ jobs:
         run: zig build --release=fast
 
       - name: Smoke test
-        run: ./zig-out/bin/fast-mempalace stats || true
+        run: |
+          ./zig-out/bin/fast-mempalace init
+          ./zig-out/bin/fast-mempalace stats
 
       - name: Package tarball
         env:

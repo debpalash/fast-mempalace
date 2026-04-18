@@ -114,4 +114,6 @@ jobs:
         run: zig build --release=fast
 
       - name: Execute CLI Validation
-        run: ./zig-out/bin/fast-mempalace stats
+        run: |
+          ./zig-out/bin/fast-mempalace init
+          ./zig-out/bin/fast-mempalace stats
