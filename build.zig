@@ -43,7 +43,13 @@ pub fn build(b: *std.Build) void {
     exe.root_module.linkSystemLibrary("ggml", .{});
     exe.root_module.linkSystemLibrary("ggml-base", .{});
     exe.root_module.linkSystemLibrary("ggml-cpu", .{});
-    exe.root_module.linkSystemLibrary("c++", .{});
+
+    // C++ runtime: libc++ on macOS, libstdc++ on Linux.
+    if (is_macos) {
+        exe.root_module.linkSystemLibrary("c++", .{});
+    } else {
+        exe.root_module.linkSystemLibrary("stdc++", .{});
+    }
 
     if (is_macos) {
         // macOS: link Metal backend + Accelerate BLAS, and the system frameworks
