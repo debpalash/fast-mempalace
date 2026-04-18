@@ -14,10 +14,14 @@ const wakeup = @import("wakeup.zig");
 
 const Allocator = std.mem.Allocator;
 
-const c_io = @cImport({
-    @cInclude("stdio.h");
-    @cInclude("stdlib.h");
+// Use POSIX read/write via libc — works identically on macOS and Linux and
+// avoids macOS-only symbols like __stdinp/__stdoutp that BSD libc uses.
+const c_posix = @cImport({
+    @cInclude("unistd.h");
 });
+
+const STDIN_FD: c_int = 0;
+const STDOUT_FD: c_int = 1;
 
 const STOP_BLOCK_REASON =
     \\AUTO-SAVE checkpoint (Fast MemPalace). Save this session's key content:
@@ -37,20 +41,19 @@ const PRECOMPACT_BLOCK_REASON =
 
 /// Process a hook invocation. Reads JSON from stdin, writes JSON to stdout.
 pub fn processHook(database: *db.Database, allocator: Allocator) !void {
-    // Read stdin via C stdio (__stdinp on macOS)
     var input_buf: [1024 * 1024]u8 = undefined;
-    const stdin_handle = c_io.__stdinp;
-    const bytes_read = c_io.fread(&input_buf, 1, input_buf.len, stdin_handle);
+    const n = c_posix.read(STDIN_FD, &input_buf, input_buf.len);
+    const bytes_read: usize = if (n > 0) @intCast(n) else 0;
 
     if (bytes_read == 0) {
-        cPuts("{\"error\":\"No input received on stdin\"}\n");
+        writeStdout("{\"error\":\"No input received on stdin\"}\n");
         return;
     }
 
     const input = input_buf[0..bytes_read];
 
     const parsed = std.json.parseFromSlice(std.json.Value, allocator, input, .{}) catch {
-        cPuts("{\"error\":\"Invalid JSON on stdin\"}\n");
+        writeStdout("{\"error\":\"Invalid JSON on stdin\"}\n");
         return;
     };
     defer parsed.deinit();
@@ -69,7 +72,7 @@ pub fn processHook(database: *db.Database, allocator: Allocator) !void {
     } else if (std.mem.eql(u8, hook_name, "precompact")) {
         handlePrecompact();
     } else {
-        cPuts("{\"error\":\"Unknown hook type\"}\n");
+        writeStdout("{\"error\":\"Unknown hook type\"}\n");
     }
 }
 
@@ -77,30 +80,32 @@ fn handleSessionStart(database: *db.Database, allocator: Allocator) !void {
     const context = try wakeup.generate(database, null, allocator);
     defer allocator.free(context);
 
-    // Build JSON response with escaped context
     const escaped = try jsonEscape(context, allocator);
     defer allocator.free(escaped);
 
     const response = try std.fmt.allocPrint(allocator, "{{\"result\":\"continue\",\"context\":\"{s}\"}}\n", .{escaped});
     defer allocator.free(response);
 
-    std.debug.print("{s}", .{response});
+    writeStdout(response);
 }
 
 fn handleStop() void {
-    std.debug.print("{{\"result\":\"block\",\"reason\":\"{s}\"}}\n", .{STOP_BLOCK_REASON});
+    var buf: [4096]u8 = undefined;
+    const msg = std.fmt.bufPrint(&buf, "{{\"result\":\"block\",\"reason\":\"{s}\"}}\n", .{STOP_BLOCK_REASON}) catch return;
+    writeStdout(msg);
 }
 
 fn handlePrecompact() void {
-    std.debug.print("{{\"result\":\"block\",\"reason\":\"{s}\"}}\n", .{PRECOMPACT_BLOCK_REASON});
+    var buf: [4096]u8 = undefined;
+    const msg = std.fmt.bufPrint(&buf, "{{\"result\":\"block\",\"reason\":\"{s}\"}}\n", .{PRECOMPACT_BLOCK_REASON}) catch return;
+    writeStdout(msg);
 }
 
-fn cPuts(msg: [*:0]const u8) void {
-    _ = c_io.fputs(msg, c_io.__stdoutp);
+fn writeStdout(msg: []const u8) void {
+    _ = c_posix.write(STDOUT_FD, msg.ptr, msg.len);
 }
 
 fn jsonEscape(text: []const u8, allocator: Allocator) ![]u8 {
-    // Worst case: every byte needs escaping (2x)
     var result: std.ArrayListUnmanaged(u8) = .empty;
     errdefer result.deinit(allocator);
 
