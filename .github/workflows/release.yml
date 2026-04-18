@@ -59,7 +59,7 @@ jobs:
         if: startsWith(matrix.target, 'linux')
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake build-essential
+          sudo apt-get install -y cmake build-essential clang libc++-dev libc++abi-dev
 
       - name: Resolve llama.cpp submodule SHA
         id: llama_sha
@@ -72,7 +72,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: lib/llama.cpp/build
-          key: llama-cpp-${{ matrix.target }}-${{ steps.llama_sha.outputs.sha }}-v1
+          key: llama-cpp-${{ matrix.target }}-${{ steps.llama_sha.outputs.sha }}-libcxx-v2
 
       - name: Download embedding model
         run: |
@@ -92,9 +92,12 @@ jobs:
               -DLLAMA_BUILD_EXAMPLES=OFF \
               -DLLAMA_BUILD_SERVER=OFF
           else
+            CC=clang CXX=clang++ \
             cmake -S lib/llama.cpp -B lib/llama.cpp/build \
               -DCMAKE_BUILD_TYPE=Release \
               -DBUILD_SHARED_LIBS=OFF \
+              -DCMAKE_CXX_FLAGS="-stdlib=libc++" \
+              -DCMAKE_EXE_LINKER_FLAGS="-stdlib=libc++" \
               -DGGML_METAL=OFF \
               -DGGML_BLAS=OFF \
               -DLLAMA_BUILD_TESTS=OFF \

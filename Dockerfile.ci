@@ -35,6 +35,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       xz-utils \
       cmake \
       build-essential \
+      clang \
+      libc++-dev \
+      libc++abi-dev \
       git \
     && rm -rf /var/lib/apt/lists/*
 
@@ -60,9 +63,12 @@ RUN mkdir -p lib && curl -fL -o lib/minilm.gguf \
 # needed; Docker reproduction forces the rebuild to match host arch.
 RUN if [ -f lib/llama.cpp/CMakeLists.txt ]; then \
       rm -rf lib/llama.cpp/build \
-      && cmake -S lib/llama.cpp -B lib/llama.cpp/build \
+      && CC=clang CXX=clang++ \
+         cmake -S lib/llama.cpp -B lib/llama.cpp/build \
            -DCMAKE_BUILD_TYPE=Release \
            -DBUILD_SHARED_LIBS=OFF \
+           -DCMAKE_CXX_FLAGS="-stdlib=libc++" \
+           -DCMAKE_EXE_LINKER_FLAGS="-stdlib=libc++" \
            -DGGML_METAL=OFF \
            -DGGML_BLAS=OFF \
            -DLLAMA_BUILD_TESTS=OFF \

@@ -44,12 +44,9 @@ pub fn build(b: *std.Build) void {
     exe.root_module.linkSystemLibrary("ggml-base", .{});
     exe.root_module.linkSystemLibrary("ggml-cpu", .{});
 
-    // C++ runtime: libc++ on macOS, libstdc++ on Linux.
-    if (is_macos) {
-        exe.root_module.linkSystemLibrary("c++", .{});
-    } else {
-        exe.root_module.linkSystemLibrary("stdc++", .{});
-    }
+    // C++ runtime: libc++ on both platforms. On Linux we build llama.cpp
+    // with clang + -stdlib=libc++ in CI so the ABI matches here.
+    exe.root_module.linkSystemLibrary("c++", .{});
 
     if (is_macos) {
         // macOS: link Metal backend + Accelerate BLAS, and the system frameworks
