@@ -30,3 +30,4 @@ lib/llama.cpp/build/
 fast-mempalace.yaml
 mempalace.yaml
 lib/llama.cpp
+.claude/
