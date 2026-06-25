@@ -13,6 +13,10 @@ pub const c = @cImport({
     @cInclude("sqlite-vec.h");
 });
 
+/// Bump when the on-disk schema changes; add a migration branch in
+/// `migrateSchema` for each step. Persisted via SQLite's `PRAGMA user_version`.
+pub const SCHEMA_VERSION: i64 = 1;
+
 pub const Sqlite3 = c.sqlite3;
 pub const Stmt = c.sqlite3_stmt;
 const SQLITE_OK = c.SQLITE_OK;
@@ -79,6 +83,37 @@ pub const Database = struct {
         const msg = c.sqlite3_errmsg(self.handle);
         if (msg == null) return "unknown error";
         return std.mem.span(msg);
+    }
+
+    // ── Schema Versioning ──
+
+    /// Read the persisted schema version (0 for a brand-new database).
+    pub fn schemaVersion(self: *Database) i64 {
+        const stmt = self.prepare("PRAGMA user_version") orelse return 0;
+        defer finalize(stmt);
+        if (step(stmt) == SQLITE_ROW) return columnInt64(stmt, 0);
+        return 0;
+    }
+
+    /// Bring an existing database up to SCHEMA_VERSION. Called from
+    /// createPalaceSchema after the IF-NOT-EXISTS table creation. A palace from
+    /// a NEWER fast-mempalace is left untouched but flagged, so we never
+    /// silently corrupt it.
+    fn migrateSchema(self: *Database) void {
+        const current = self.schemaVersion();
+        if (current > SCHEMA_VERSION) {
+            std.debug.print(
+                "warn: palace schema v{d} was created by a newer fast-mempalace (this build supports v{d}); some features may not work.\n",
+                .{ current, SCHEMA_VERSION },
+            );
+            return;
+        }
+        // Future: `if (current < 2) { ...migrate... }` etc.
+        if (current != SCHEMA_VERSION) {
+            var buf: [64]u8 = undefined;
+            const sql = std.fmt.bufPrintZ(&buf, "PRAGMA user_version = {d}", .{SCHEMA_VERSION}) catch return;
+            self.exec(sql);
+        }
     }
 
     // ── Schema Creation ──
@@ -192,6 +227,9 @@ pub const Database = struct {
             \\  completed_at INTEGER
             \\)
         );
+
+        // Stamp/upgrade the schema version last, once all tables exist.
+        self.migrateSchema();
     }
 };
 

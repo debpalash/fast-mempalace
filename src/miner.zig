@@ -18,6 +18,9 @@ pub const MineStats = struct {
     drawers_created: u32 = 0,
     files_skipped: u32 = 0,
     bytes_processed: u64 = 0,
+    /// Chunks that failed to embed or insert. Non-zero means some content was
+    /// NOT remembered — surfaced to the caller rather than swallowed silently.
+    errors: u32 = 0,
 };
 
 pub const MineOptions = struct {
@@ -119,23 +122,26 @@ fn processFileConcurrently(
     }
 
     var drawers_added: u32 = 0;
+    var errors: u32 = 0;
     for (chunks, 0..) |chunk, i| {
-        const embedding = embed.embed(chunk, allocator) catch continue;
+        const embedding = embed.embed(chunk, allocator) catch |err| {
+            std.debug.print("warn: embed failed for {s} chunk {d}: {s}\n", .{ entry_path, i, @errorName(err) });
+            errors += 1;
+            continue;
+        };
         defer allocator.free(embedding);
 
-        _ = palace.insertDrawer(
-            room_id,
-            chunk,
-            entry_path,
-            "file",
-            @intCast(i),
-            embedding,
-        ) catch continue;
+        _ = palace.insertDrawer(room_id, chunk, entry_path, "file", @intCast(i), embedding) catch |err| {
+            std.debug.print("warn: store failed for {s} chunk {d}: {s}\n", .{ entry_path, i, @errorName(err) });
+            errors += 1;
+            continue;
+        };
 
         drawers_added += 1;
     }
 
     _ = @atomicRmw(u32, &stats.drawers_created, .Add, drawers_added, .monotonic);
+    _ = @atomicRmw(u32, &stats.errors, .Add, errors, .monotonic);
     _ = @atomicRmw(u32, &stats.files_processed, .Add, 1, .monotonic);
 }
 
@@ -169,9 +175,17 @@ pub fn mineFile(
     }
 
     for (chunks, 0..) |chunk, i| {
-        const embedding = embed.embed(chunk, allocator) catch continue;
+        const embedding = embed.embed(chunk, allocator) catch |err| {
+            std.debug.print("warn: embed failed for {s} chunk {d}: {s}\n", .{ file_path, i, @errorName(err) });
+            stats.errors += 1;
+            continue;
+        };
         defer allocator.free(embedding);
-        _ = palace.insertDrawer(room_id, chunk, file_path, "file", @intCast(i), embedding) catch continue;
+        _ = palace.insertDrawer(room_id, chunk, file_path, "file", @intCast(i), embedding) catch |err| {
+            std.debug.print("warn: store failed for {s} chunk {d}: {s}\n", .{ file_path, i, @errorName(err) });
+            stats.errors += 1;
+            continue;
+        };
         stats.drawers_created += 1;
     }
     stats.files_processed = 1;

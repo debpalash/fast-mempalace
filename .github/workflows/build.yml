@@ -124,3 +124,6 @@ jobs:
           printf 'The deploy key id is QUASAR-77 and must never be logged.\n' > smoke.txt
           ./zig-out/bin/fast-mempalace mine smoke.txt smoke
           ./zig-out/bin/fast-mempalace search "what is the deploy key" 2>&1 | grep -q QUASAR-77
+
+      - name: Integration tests (mine / ranking / MCP / hooks / schema)
+        run: bash scripts/integration-test.sh ./zig-out/bin/fast-mempalace

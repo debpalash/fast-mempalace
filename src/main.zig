@@ -157,6 +157,10 @@ fn cmdMine(io: std.Io, path: [:0]const u8, wing_name: []const u8, cfg: *const co
         \\  Bytes processed: {}
         \\
     , .{ stats.files_processed, stats.drawers_created, stats.files_skipped, stats.bytes_processed });
+
+    if (stats.errors > 0) {
+        std.debug.print("  ⚠ {} chunk(s) failed to embed/store — see warnings above; that content was NOT remembered.\n", .{stats.errors});
+    }
 }
 
 fn cmdSearch(query: [:0]const u8, cfg: *const config.Config, allocator: std.mem.Allocator, io: std.Io) !void {
