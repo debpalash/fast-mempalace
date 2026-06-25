@@ -78,7 +78,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: lib/llama.cpp/build
-          key: llama-cpp-${{ matrix.target }}-${{ steps.llama_sha.outputs.sha }}-libcxx-v2
+          key: llama-cpp-${{ matrix.target }}-${{ steps.llama_sha.outputs.sha }}-libcxx-v3
 
       - name: Download embedding model
         run: |
