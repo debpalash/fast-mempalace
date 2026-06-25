@@ -75,6 +75,17 @@ hook_rc=$?
 recall=$("$BIN" search "which cache backend did we choose" 2>&1)
 have "$recall" "Redis" && ok "PreCompact auto-saved content is recallable" || bad "PreCompact auto-save not recalled"
 
+# 6) adversarial MCP input must not crash the server (memory-safety regression guard)
+adv=$(printf '%s\n' \
+  '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":5}}' \
+  '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"memory_search","arguments":{"query":"x","limit":9999999999}}}' \
+  '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"memory_search","arguments":{"query":"x","limit":-5}}}' \
+  '{"jsonrpc":"2.0","id":4,"method":"initialize","params":{"protocolVersion":"2024-11-05\",\"evil\":\"x"}}' \
+  | "$BIN" mcp 2>/dev/null)
+advrc=$?
+[ "$advrc" = "0" ] && ok "MCP survives adversarial input (no crash)" || bad "MCP crashed on adversarial input (exit $advrc)"
+have "$adv" "evil" && bad "protocolVersion injection NOT neutralized" || ok "protocolVersion injection neutralized"
+
 echo
 if [ "$FAIL" -eq 0 ]; then
   echo "integration: $PASS passed, 0 failed"

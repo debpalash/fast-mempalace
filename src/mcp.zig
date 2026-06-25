@@ -130,12 +130,15 @@ fn handleLine(
     const method = req.method;
 
     if (std.mem.eql(u8, method, "initialize")) {
-        // Echo the client's requested protocol version for maximum compatibility.
+        // Echo the client's requested protocol version for compatibility — but
+        // only if it's a safe version token. It's interpolated into a hand-built
+        // JSON string, so an unescaped `"`/`\` would let the client inject
+        // arbitrary response fields. Real versions look like "2024-11-05".
         var version: []const u8 = "2024-11-05";
         if (req.params) |pp| {
             if (pp == .object) {
                 if (pp.object.get("protocolVersion")) |pv| {
-                    if (pv == .string) version = pv.string;
+                    if (pv == .string and isSafeVersion(pv.string)) version = pv.string;
                 }
             }
         }
@@ -170,7 +173,12 @@ fn dispatchTool(
 ) ![]u8 {
     const p = params orelse return error.MissingParams;
     if (p != .object) return error.MissingParams;
-    const name = (p.object.get("name") orelse return error.MissingToolName).string;
+    // Type-check rather than blindly accessing `.string`: a non-string `name`
+    // (e.g. {"name": 5}) is an inactive-union access = silent UB in ReleaseFast.
+    const name = switch (p.object.get("name") orelse return error.MissingToolName) {
+        .string => |s| s,
+        else => return error.MissingToolName,
+    };
     const args: ?std.json.Value = p.object.get("arguments");
 
     // Semantic tools need the embedding model; load it lazily on first use so
@@ -181,7 +189,10 @@ fn dispatchTool(
 
     if (std.mem.eql(u8, name, "memory_search")) {
         const query = getStr(args, "query") orelse return error.MissingQuery;
-        const limit: i32 = @intCast(getInt(args, "limit") orelse 5);
+        // Clamp attacker-controlled limit to a sane range. Without this, an
+        // out-of-i32 or negative value is UB via @intCast (and an overflow in
+        // the searcher's `limit * 2`) under ReleaseFast.
+        const limit: i32 = @intCast(std.math.clamp(getInt(args, "limit") orelse 5, 1, 100));
         return toolSearch(allocator, pal, io, query, limit);
     } else if (std.mem.eql(u8, name, "memory_store")) {
         const content = getStr(args, "content") orelse return error.MissingContent;
@@ -287,6 +298,17 @@ fn writeLine(io: std.Io, json: []const u8) void {
 
 // ── std.json.Value argument accessors ──
 
+/// A protocol version is safe to reflect into hand-built JSON only if it
+/// contains nothing that could break out of a JSON string. Versions are short
+/// tokens of digits, dots, and dashes.
+fn isSafeVersion(v: []const u8) bool {
+    if (v.len == 0 or v.len > 32) return false;
+    for (v) |ch| {
+        if (!std.ascii.isDigit(ch) and ch != '.' and ch != '-') return false;
+    }
+    return true;
+}
+
 fn getStr(args: ?std.json.Value, key: []const u8) ?[]const u8 {
     const a = args orelse return null;
     if (a != .object) return null;
@@ -303,7 +325,9 @@ fn getInt(args: ?std.json.Value, key: []const u8) ?i64 {
     const v = a.object.get(key) orelse return null;
     return switch (v) {
         .integer => |n| n,
-        .float => |f| @intFromFloat(f),
+        // Guard @intFromFloat: NaN (comparisons are false → null) and
+        // out-of-range floats are UB to cast directly.
+        .float => |f| if (f >= -1.0e18 and f <= 1.0e18) @intFromFloat(f) else null,
         .string => |s| std.fmt.parseInt(i64, s, 10) catch null,
         else => null,
     };
