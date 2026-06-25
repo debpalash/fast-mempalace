@@ -17,7 +17,9 @@ VERSION="${FAST_MEMPALACE_VERSION:-latest}"
 INSTALL_DIR="${FAST_MEMPALACE_INSTALL:-$HOME/.fast-mempalace}"
 BIN_DIR="$INSTALL_DIR/bin"
 LIB_DIR="$INSTALL_DIR/lib"
-MODEL_URL="https://huggingface.co/nomic-ai/nomic-embed-text-v1.5-GGUF/resolve/main/nomic-embed-text-v1.5.f16.gguf"
+# MiniLM-L6-v2, 384-dim (matches EMBEDDING_DIM and the vec_drawers schema).
+# Must stay a 384-dim model or fresh installs fail the dimension check.
+MODEL_URL="https://huggingface.co/leliuga/all-MiniLM-L6-v2-GGUF/resolve/main/all-MiniLM-L6-v2.F16.gguf"
 
 C_RESET='\033[0m'; C_BOLD='\033[1m'; C_DIM='\033[2m'
 C_BLUE='\033[34m'; C_GREEN='\033[32m'; C_RED='\033[31m'; C_YELLOW='\033[33m'
@@ -117,8 +119,9 @@ shell_hint() {
     printf "  source %s\n\n" "$shell_rc"
   fi
   printf "%bQuick check:%b\n\n  fast-mempalace stats\n\n" "$C_BOLD" "$C_RESET"
-  printf "%bOptional drop-in alias%b (keeps legacy scripts working):\n\n  ln -s %s/fast-mempalace %s/mempalace\n\n" \
-    "$C_BOLD" "$C_RESET" "$BIN_DIR" "$BIN_DIR"
+  printf "%bClaude Code:%b add persistent memory in two lines —\n\n  /plugin marketplace add MemPalace/fast-mempalace\n  /plugin install fast-mempalace\n\n" \
+    "$C_BOLD" "$C_RESET"
+  printf "%bSeed memory from a repo (optional):%b\n\n  fast-mempalace mine . my-project\n\n" "$C_BOLD" "$C_RESET"
   printf "%bDocs:%b https://github.com/%s\n" "$C_DIM" "$C_RESET" "$REPO"
 }
 

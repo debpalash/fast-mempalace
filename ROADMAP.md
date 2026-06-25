@@ -6,22 +6,25 @@ Legend: `[x]` done · `[~]` partial · `[ ]` planned
 
 ---
 
-## Phase 0 — Shipped (v0.1)
+## Phase 0 — Shipped (v0.2)
 
-Core engine that runs the four pillars faster than upstream while holding 80–93% less RAM (see `BENCHMARK.md`).
+Real, working local memory engine + Claude Code integration. Verified end-to-end
+against Claude Code 2.1.191.
 
 - [x] `init` / `stats` — palace DB bootstrap + pragma mapping
-- [x] `mine <path> [wing]` — concurrent file ingestion (single-file path; directory walker being fixed in v0.1.1)
-- [x] `search <query>` — sqlite-vec L2 semantic retrieval
-- [x] `kg [subject]` — knowledge-graph relationship query
+- [x] `mine <path> [wing]` — concurrent file ingestion; **directory walker fixed** (v0.1 mis-routed dirs to the conversation path → 0 files)
+- [x] **Real on-device embeddings** — `llama.cpp` MiniLM-L6-v2 (384-dim), Metal/CUDA, mean-pooled + L2-normalized (was a placeholder dummy vector)
+- [x] `search <query>` — `sqlite-vec` retrieval with **corrected hybrid scoring** (the old score was inverted → best match ranked last)
+- [x] **Static linking fixed** — links the cmake-built `llama.cpp` `.a` archives, not Homebrew dylibs (which crashed with a duplicate-dylib error)
 - [x] `wake-up [--wing X]` — L0+L1 context loader (~600–900 tok)
-- [x] `hook` — JSON stdin/stdout for Claude Code hook pipeline
-- [x] `instructions` — skill-instruction emitter
-- [x] `mcp` — JSON-RPC MCP server for editor integration
-- [x] `mempalace.yaml` + `fast-mempalace.yaml` drop-in config
-- [x] Native Metal / CUDA embedding via statically linked `llama.cpp`
-- [x] MIT license, GitHub Actions CI, one-line curl installer, prebuilt release binaries
-- [x] OmniVoice corpus benchmark (450 KB → 1 171 drawers in 0.59 s)
+- [x] **`mcp` — real MCP server**: `memory_search` / `memory_store` / `memory_wake_up` / `memory_stats`, lazy model load, protocol-version echo (was a hardcoded stub)
+- [x] **`hook` — real Claude Code protocol**: SessionStart injects wake-up via `additionalContext`; PreCompact reads the transcript and **auto-saves** the tail (was a custom protocol + a nag)
+- [x] **Claude Code plugin** — `claude-plugin/` + marketplace manifest: MCP server + hooks + `using-memory` skill + `/remember` `/recall` commands; one global palace via `FAST_MEMPALACE_DB`/`_MODEL` env overrides
+- [x] `kg [subject]` — knowledge-graph relationship query (manual population)
+- [x] `instructions` — memory-instruction emitter
+- [x] `mempalace.yaml` + `fast-mempalace.yaml` config + env-var overrides
+- [x] MIT license, GitHub Actions CI, one-line curl installer (now fetches a **384-dim** model)
+- [x] Honest benchmarks vs the real engine (`BENCHMARK.md`); retrieval 7/7 top-1 on a paraphrase test
 
 ---
 
@@ -31,7 +34,7 @@ Close every remaining gap with the upstream `pip install mempalace` surface. Eac
 
 > ⚠ Upstream CLI audit is still pending (PyPI fetch was blocked during planning). These items are inferred from project structure and the typical memory-tool surface. Cross-check against the upstream docs before cutting v0.2.
 
-- [ ] **Directory walker bug** — `fast-mempalace mine <dir>` currently enumerates 0 files; single-file path works. Root cause in `src/miner.zig` walker loop on Zig 0.16. Blocks large-repo mining.
+- [x] **Directory walker bug** — fixed in v0.2. Root cause was `cmdMine` using `openFile` to discriminate (it succeeds on directories in Zig 0.16's IO), mis-routing dirs to the conversation path; now discriminates with `openDir`.
 - [ ] **`mine` flag parity** — `--wing`, `--room`, `--recursive`, `--ignore`, `--dry-run`
 - [ ] **`search` flag parity** — `--limit`, `--wing`, `--format=json|md|plain`, similarity threshold
 - [ ] **`init` vs `stats`** — upstream uses `init`; alias our `stats` where appropriate
@@ -71,7 +74,7 @@ Ship features upstream Python cannot match without rewriting. Each lands a capab
 - [ ] **Homebrew formula** — `brew install fast-mempalace`
 - [ ] **Docker image** — ~15 MB distroless image (vs upstream ~1.2 GB Python+ML)
 - [ ] **Shell completions** — zsh / bash / fish
-- [ ] **Claude Code plugin** — one-line install that wires hooks + MCP + slash commands
+- [x] **Claude Code plugin** — `claude-plugin/` wires MCP + hooks + skill + slash commands (v0.2)
 - [ ] **Plugin SDK** — stable `lib/fast_mempalace.h` C ABI for 3rd-party languages
 
 ### v0.6+ — Intelligence Layer

@@ -15,6 +15,22 @@ const db = @import("db.zig");
 
 const Allocator = std.mem.Allocator;
 
+// Serializes write sequences that depend on lastInsertRowId(). The concurrent
+// miner inserts a drawer row then reads the new rowid to attach its embedding;
+// without this lock two threads interleave and bind embeddings to the WRONG
+// drawer id, silently corrupting semantic search. The lock makes the
+// content-insert → rowid → vector-insert sequence atomic.
+var write_lock: std.atomic.Value(bool) = .init(false);
+
+fn lockWrites() void {
+    while (write_lock.cmpxchgWeak(false, true, .acquire, .monotonic) != null) {
+        std.atomic.spinLoopHint();
+    }
+}
+fn unlockWrites() void {
+    write_lock.store(false, .release);
+}
+
 // ── Data Types ──
 
 pub const Wing = struct {
@@ -192,6 +208,12 @@ pub const Palace = struct {
         var hash_hex: [64]u8 = undefined;
         const hex = std.fmt.bufPrint(&hash_hex, "{s}", .{std.fmt.bytesToHex(hash_buf, .lower)}) catch return error.HashFailed;
 
+        // Hold the write lock across dedup-check → insert → rowid → vec-insert so
+        // the rowid we read is unambiguously the row we just inserted, even when
+        // the miner calls this concurrently from multiple tasks.
+        lockWrites();
+        defer unlockWrites();
+
         // Check dedup
         {
             const check = self.database.prepare("SELECT id FROM drawers WHERE content_hash = ?") orelse return error.PrepareFailed;
@@ -325,6 +347,11 @@ pub const Palace = struct {
             \\║  Drawers:  {d:>8}                 ║
             \\║  Entities: {d:>8}                 ║
             \\╚═══════════════════════════════════╝
-        , .{ wing_n, room_n, drawer_n, entity_n });
+        , .{
+            @as(u64, @intCast(@max(0, wing_n))),
+            @as(u64, @intCast(@max(0, room_n))),
+            @as(u64, @intCast(@max(0, drawer_n))),
+            @as(u64, @intCast(@max(0, entity_n))),
+        });
     }
 };

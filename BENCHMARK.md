@@ -1,59 +1,60 @@
 # ⏱️ fast-mempalace Benchmarks
 
-Hardware performance of identical pipelines: legacy Pip `mempalace` (Python / ONNX / ChromaDB) vs `fast-mempalace` (Zig 0.16.0 / Metal / sqlite-vec).
+Absolute performance of the real semantic engine (`llama.cpp` MiniLM-L6-v2 embeddings +
+`sqlite-vec`). Hardware: Apple Silicon, macOS, Metal backend. Each command run cold
+(fresh process) unless noted. Memory = peak resident set size.
 
-Hardware: Apple M2, 16 GB, macOS. Each command run cold (fresh DB, fresh process). Memory = peak resident set size.
+> Earlier versions of this file reported a `0.59 s` mine of 1 171 drawers. That run used
+> **placeholder vectors** (the embedder returned a constant dummy vector), so it measured
+> I/O, not embedding. The numbers below are the real on-device semantic pipeline.
 
-## 1. Cold start
+## 1. Latency
 
-Python carries ~1 s of `chromadb` + `pydantic` parse overhead before any DB work. `fast-mempalace` defers the LLM context entirely and goes straight to `sqlite-vec`.
+| Operation | Time | Peak RAM | Loads model? |
+| --------- | ---- | -------- | ------------ |
+| `stats` (cold start) | **0.01 s** | ~8 MB | no |
+| `wake-up` (session context) | **0.01 s** | ~8 MB | no |
+| `mine` — 15 files → 31 drawers | **~1.0 s** | ~100 MB | yes |
+| `search` — one-shot CLI | **~0.55 s** | ~100 MB | yes (each call) |
+| `search` — vector match only | **sub-ms** | — | model already resident |
 
-| Engine | Command | Time | Peak RAM |
-| ------ | ------- | ---- | -------- |
-| 🐢 `mempalace` (Python) | `mempalace init` | 1.40 s | 50.15 MB |
-| ⚡ `fast-mempalace` (Zig) | `fast-mempalace stats` | **0.01 s** | **8.40 MB** |
+The key distinction for agent use: the **CLI reloads the embedding model on every
+invocation** (~0.5 s of that 0.55 s is Metal model init). The **MCP server loads the
+model once and stays resident**, so per-query recall after warm-up is dominated by the
+`sqlite-vec` match — sub-millisecond on these corpus sizes. Session `wake-up` never loads
+the model at all, which is why it's 10 ms and runs on every session start.
 
-## 2. Neural ingestion — OmniVoice corpus
+## 2. Footprint
 
-Corpus from the [OmniVoice](https://github.com/debpalash/OmniVoice-Studio) repo — all `.py`, `.md`, `.yaml`, `.toml` files concatenated (**450 368 bytes across 56 files → 1 171 drawers**). Apples-to-apples: same bytes, same embedder, same drawer-chunking.
+| | Value |
+| -- | -- |
+| Binary size (`--release=fast`, statically linked) | ~6 MB |
+| Embedding model (MiniLM-L6-v2, F16 GGUF) | ~45 MB |
+| Runtime dependencies | none (no Python, no Docker, no external vector DB) |
+| Network calls at query time | none |
 
-| Engine | Command | Time | Peak RAM |
-| ------ | ------- | ---- | -------- |
-| 🐢 `mempalace` (Python) | `mempalace mine` | ~120 s (blocks on ChromaDB) | ~320 MB |
-| ⚡ `fast-mempalace` (Zig) | `fast-mempalace mine` | **0.59 s** | **95 MB** |
+## 3. Retrieval quality (sanity)
 
-Python blocks on I/O mapping across arrays and pushes system RAM into the hundreds of MB. Zig decouples I/O via `std.Io.Group` concurrency and maps matrices into the Metal API.
-
-## 3. Semantic clustering — search
-
-Mathematical proximity sort against the full DB geometry. Memory deltas are astronomical because `fast-mempalace` binds statically against `sqlite-vec`.
-
-| Engine | Command | Time | Peak RAM |
-| ------ | ------- | ---- | -------- |
-| 🐢 `mempalace` (Python) | `mempalace search` | 0.78 s | 270 MB |
-| ⚡ `fast-mempalace` (Zig) | `fast-mempalace search` | **0.59 s** | **94 MB** |
-
-## 4. Extended commands
-
-Pure execution paths that never touch the embedder.
-
-| Engine | Command | Time | Peak RAM |
-| ------ | ------- | ---- | -------- |
-| 🐢 `mempalace` (Python) | `mempalace wake-up` | 0.53 s | 76 MB |
-| ⚡ `fast-mempalace` (Zig) | `fast-mempalace kg` | **0.02 s** | **8.40 MB** |
+On a 4-topic corpus (biology / coffee / algorithms / history) with paraphrased queries
+that share no keywords with the stored text, top-1 retrieval is correct 7/7 — e.g.
+"how do cells produce energy" → the mitochondria/ATP drawer; "brewing a good cup of
+coffee" → the espresso drawer. Identical strings cosine to 1.00; paraphrases ~0.55;
+unrelated topics ~0.03.
 
 ## Reproducing
 
 ```bash
-# Build fast-mempalace
 zig build --release=fast
 
-# Mine the OmniVoice corpus
-find /path/to/OmniVoice -type f \( -name "*.py" -o -name "*.md" -o -name "*.yaml" -o -name "*.toml" \) \
-  | xargs cat > corpus.txt
-/usr/bin/time -l ./zig-out/bin/fast-mempalace mine corpus.txt omnivoice
+# point at a 384-dim model
+export FAST_MEMPALACE_MODEL=$PWD/lib/minilm.gguf
+export FAST_MEMPALACE_DB=/tmp/bench.db
 
-# Run the Python baseline (for comparison rows above)
-pip install mempalace
-/usr/bin/time -l mempalace mine corpus.txt
+./zig-out/bin/fast-mempalace init
+/usr/bin/time -p ./zig-out/bin/fast-mempalace mine ./src bench     # mine a directory
+/usr/bin/time -p ./zig-out/bin/fast-mempalace search "how does search ranking work"
+/usr/bin/time -p ./zig-out/bin/fast-mempalace wake-up
 ```
+
+For warm MCP-server latency, start `fast-mempalace mcp` and issue repeated
+`tools/call → memory_search` requests over stdio; only the first pays the model-load cost.

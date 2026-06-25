@@ -139,6 +139,62 @@ fn processFileConcurrently(
     _ = @atomicRmw(u32, &stats.files_processed, .Add, 1, .monotonic);
 }
 
+/// Mine a single document file (source code, markdown, notes — anything that
+/// isn't a chat export). Chunks, embeds, and inserts it under a room named for
+/// the file. This is the path a lone `mine <file>` takes.
+pub fn mineFile(
+    palace: *Palace,
+    file_path: []const u8,
+    wing_name: []const u8,
+    io: std.Io,
+    allocator: Allocator,
+) !MineStats {
+    var stats = MineStats{};
+
+    const wing_id = try palace.createWing(wing_name, "", "auto-mined");
+    const room_name = std.fs.path.basename(file_path);
+    const room_id = try palace.createRoom(wing_id, room_name, "auto-mined");
+
+    const dir = std.Io.Dir.cwd();
+    const content = readFileContent(dir, io, file_path, allocator) orelse return stats;
+    defer allocator.free(content);
+    if (content.len == 0) return stats;
+
+    stats.bytes_processed = content.len;
+
+    const chunks = try chunkContent(content, 2048, 256, allocator);
+    defer {
+        for (chunks) |chunk| allocator.free(chunk);
+        allocator.free(chunks);
+    }
+
+    for (chunks, 0..) |chunk, i| {
+        const embedding = embed.embed(chunk, allocator) catch continue;
+        defer allocator.free(embedding);
+        _ = palace.insertDrawer(room_id, chunk, file_path, "file", @intCast(i), embedding) catch continue;
+        stats.drawers_created += 1;
+    }
+    stats.files_processed = 1;
+    return stats;
+}
+
+/// Store a single in-memory snippet (a decision, quote, or code block) as one
+/// drawer. Used by the MCP `store` tool and the auto-save hooks — no file I/O.
+pub fn storeMemory(
+    palace: *Palace,
+    content: []const u8,
+    wing_name: []const u8,
+    room_name: []const u8,
+    source: []const u8,
+    allocator: Allocator,
+) !i64 {
+    const wing_id = try palace.createWing(wing_name, "", "memory");
+    const room_id = try palace.createRoom(wing_id, room_name, "");
+    const embedding = embed.embed(content, allocator) catch &[_]f32{};
+    defer if (embedding.len > 0) allocator.free(embedding);
+    return palace.insertDrawer(room_id, content, source, "memory", 0, embedding);
+}
+
 /// Mine a conversation file (JSON/JSONL chat export)
 pub fn mineConversation(
     palace: *Palace,
@@ -276,6 +332,13 @@ fn shouldSkipFile(basename: []const u8) bool {
     for (skip_exts) |skip| {
         if (std.ascii.eqlIgnoreCase(ext, skip)) return true;
     }
+
+    // Skip our own database + its SQLite sidecars (WAL/SHM) so the palace never
+    // mines itself.
+    if (std.mem.indexOf(u8, basename, ".db-wal") != null) return true;
+    if (std.mem.indexOf(u8, basename, ".db-shm") != null) return true;
+    if (std.mem.indexOf(u8, basename, "fast-mempalace.db") != null) return true;
+    if (std.mem.indexOf(u8, basename, "mempalace.db") != null) return true;
 
     // Skip known directories in filenames
     if (std.mem.indexOf(u8, basename, "node_modules") != null) return true;

@@ -58,27 +58,30 @@ pub fn searchHybrid(
         }
     }
 
-    // 2. Base Re-rank
+    // 2. Base Re-rank.
+    //
+    // Convention: LOWER score = better match (we sort ascending below).
+    // The vector distance is the dominant signal; recency and exact-keyword
+    // matches apply small *discounts* that pull a result up the list. Crucially
+    // we do NOT clamp to 0 here — clamping would collapse distinct distances
+    // into ties and destroy the ranking the vector index just computed.
     for (results) |*res| {
-        var score = @max(0.0, 1.0 - res.distance);
+        var score = res.distance;
 
         const age_secs = @max(0, current_time - res.created_at);
         const age_ratio = @min(1.0, @as(f64, @floatFromInt(age_secs)) / 7776000.0);
-        score += options.recency_boost * (1.0 - age_ratio);
+        score -= options.recency_boost * (1.0 - age_ratio); // recent → smaller → better
 
         var matches: usize = 0;
         for (keywords.items) |kw| {
-            if (std.mem.indexOf(u8, res.content, kw) != null) {
-                matches += 1;
-            }
+            if (containsIgnoreCase(res.content, kw)) matches += 1;
         }
-        
         if (keywords.items.len > 0) {
             const kw_ratio = @as(f64, @floatFromInt(matches)) / @as(f64, @floatFromInt(keywords.items.len));
-            score -= options.keyword_boost * kw_ratio;
+            score -= options.keyword_boost * kw_ratio; // keyword hit → smaller → better
         }
-        
-        res.score = @max(0.0, score);
+
+        res.score = score;
     }
 
     // 3. Optional LLM HTTP Reranking
@@ -138,4 +141,15 @@ pub fn searchHybrid(
     }
 
     return results;
+}
+
+/// Case-insensitive substring search (ASCII). Used for the small keyword
+/// discount on top of vector ranking.
+fn containsIgnoreCase(haystack: []const u8, needle: []const u8) bool {
+    if (needle.len == 0 or needle.len > haystack.len) return false;
+    var i: usize = 0;
+    while (i + needle.len <= haystack.len) : (i += 1) {
+        if (std.ascii.eqlIgnoreCase(haystack[i .. i + needle.len], needle)) return true;
+    }
+    return false;
 }
