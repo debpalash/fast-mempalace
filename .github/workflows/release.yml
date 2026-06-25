@@ -90,9 +90,11 @@ jobs:
       - name: Build llama.cpp static libraries
         if: steps.cache_llama.outputs.cache-hit != 'true'
         run: |
-          # Cross-compile flag for Intel macOS built on an arm runner.
+          # Cross-compile flags for Intel macOS built on an arm runner.
+          # GGML_NATIVE=OFF stops ggml from applying host (apple-m2) CPU flags
+          # that clang rejects when targeting x86_64 ("unknown target CPU").
           OSX_ARCH_FLAG=""
-          if [ -n "${{ matrix.osx_arch }}" ]; then OSX_ARCH_FLAG="-DCMAKE_OSX_ARCHITECTURES=${{ matrix.osx_arch }}"; fi
+          if [ -n "${{ matrix.osx_arch }}" ]; then OSX_ARCH_FLAG="-DCMAKE_OSX_ARCHITECTURES=${{ matrix.osx_arch }} -DGGML_NATIVE=OFF"; fi
           if [ "$(uname -s)" = "Darwin" ]; then
             cmake -S lib/llama.cpp -B lib/llama.cpp/build \
               -DCMAKE_BUILD_TYPE=Release \
