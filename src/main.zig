@@ -19,6 +19,7 @@ pub fn main(init: std.process.Init) !void {
     const allocator = init.gpa;
     var cfg = config.load(allocator, init.io) catch config.Config{};
     defer cfg.deinit(allocator);
+    config.applyEnvOverrides(&cfg, allocator);
 
     var args_it = try std.process.Args.Iterator.initAllocator(init.minimal.args, allocator);
     defer args_it.deinit();
@@ -60,10 +61,26 @@ pub fn main(init: std.process.Init) !void {
         try cmdWakeUp(wing, &cfg, allocator);
     } else if (std.mem.eql(u8, command, "hook")) {
         try cmdHook(&cfg, allocator);
+    } else if (std.mem.eql(u8, command, "embdbg")) {
+        try embedder.initGlobal(cfg.model_path);
+        defer embedder.deinitGlobal();
+        const a = args_it.next() orelse "the cat sat on the mat";
+        const b = args_it.next() orelse "a feline rested upon the rug";
+        const va = try embedder.embed(a, allocator);
+        defer allocator.free(va);
+        const vb = try embedder.embed(b, allocator);
+        defer allocator.free(vb);
+        var dot: f32 = 0;
+        for (va, vb) |x, y| dot += x * y;
+        std.debug.print("dim={d}  |a|first3=[{d:.4} {d:.4} {d:.4}]  |b|first3=[{d:.4} {d:.4} {d:.4}]  cos={d:.4}\n", .{
+            va.len, va[0], va[1], va[2], vb[0], vb[1], vb[2], dot,
+        });
     } else if (std.mem.eql(u8, command, "instructions")) {
         cmdInstructions();
     } else if (std.mem.eql(u8, command, "mcp")) {
-        try embedder.initGlobal(cfg.model_path);
+        // The model loads lazily on the first semantic search (see mcp.zig), so
+        // `initialize` answers instantly and the client never times us out
+        // waiting on cold Metal shader compilation. We still free it on exit.
         defer embedder.deinitGlobal();
 
         try mcp.serve(allocator, &cfg, init.io);
@@ -115,13 +132,21 @@ fn cmdMine(io: std.Io, path: [:0]const u8, wing_name: []const u8, cfg: *const co
 
     var stats: miner.MineStats = undefined;
 
-    // We can't easily stat via std.Io yet, so try opening as a file
-    const file = std.Io.Dir.cwd().openFile(io, path, .{}) catch null;
-    if (file != null) {
-        file.?.close(io);
-        stats = try miner.mineConversation(&pal, path, wing_name, io, allocator);
-    } else {
+    // Discriminate directory vs file by trying to open it AS a directory.
+    // (openFile succeeds on directories in this IO model, so it can't be the
+    // discriminator — that was the v0.1 "mine <dir> finds 0 files" bug.)
+    if (std.Io.Dir.cwd().openDir(io, path, .{})) |dir_handle| {
+        var d = dir_handle;
+        d.close(io);
         stats = try miner.mineDirectory(&pal, path, .{ .wing_name = wing_name }, io, allocator);
+    } else |_| {
+        // It's a single file. JSON/JSONL → conversation export; otherwise document.
+        const ext = std.fs.path.extension(path);
+        if (std.ascii.eqlIgnoreCase(ext, ".json") or std.ascii.eqlIgnoreCase(ext, ".jsonl")) {
+            stats = try miner.mineConversation(&pal, path, wing_name, io, allocator);
+        } else {
+            stats = try miner.mineFile(&pal, path, wing_name, io, allocator);
+        }
     }
 
     std.debug.print(
@@ -227,30 +252,36 @@ fn cmdHook(cfg: *const config.Config, allocator: std.mem.Allocator) !void {
     defer database.close();
     database.createPalaceSchema();
 
-    try hooks.processHook(&database, allocator);
+    // PreCompact auto-save lazily loads the embedder; free it before exit so
+    // ggml-metal's static destructor doesn't abort on un-released resources.
+    defer embedder.deinitGlobal();
+
+    try hooks.processHook(&database, cfg, allocator);
 }
 
 fn cmdInstructions() void {
     const instructions =
-        \\# Fast MemPalace — Skill Instructions
+        \\# Fast MemPalace — Memory Instructions
         \\
-        \\You have access to a local-first AI memory system called Fast MemPalace.
-        \\It stores verbatim content organized into Wings (projects/people),
-        \\Rooms (topics), and Drawers (content chunks).
+        \\You have a persistent, local-first memory palace. It survives across
+        \\sessions and never leaves this machine. Content is organized into Wings
+        \\(projects/domains) → Rooms (topics) → Drawers (verbatim chunks).
         \\
-        \\## Available Tools
-        \\- `fast-mempalace search "<query>"` — Semantic search across all memories
-        \\- `fast-mempalace wake-up` — Load L0+L1 context (~600-900 tokens)
-        \\- `fast-mempalace wake-up --wing <name>` — Scoped wake-up for a project
-        \\- `fast-mempalace mine <path>` — Ingest files into the palace
-        \\- `fast-mempalace kg <subject>` — Query the knowledge graph
-        \\- `fast-mempalace stats` — Show palace statistics
+        \\## MCP tools (preferred, inside an agent)
+        \\- `memory_search` — semantic recall; call BEFORE answering about prior work.
+        \\- `memory_store`  — persist a decision, constraint, or snippet (verbatim).
+        \\- `memory_wake_up`— load the compact continuity brief.
+        \\- `memory_stats`  — palace statistics.
         \\
-        \\## Best Practices
-        \\1. Always run `fast-mempalace wake-up` at session start
-        \\2. Use `fast-mempalace search` before answering questions about past work
-        \\3. Store important decisions with `fast-mempalace mine`
-        \\4. Keep the knowledge graph updated for entity relationships
+        \\## CLI (scripting / seeding)
+        \\- `fast-mempalace mine <path> [wing]` — ingest a file or directory.
+        \\- `fast-mempalace search "<query>"`   — semantic search.
+        \\- `fast-mempalace wake-up [--wing X]` — print the wake-up context.
+        \\
+        \\## Best practices
+        \\1. Recall before you answer anything about past decisions or conventions.
+        \\2. After a real decision or a correction, store it as one crisp memory.
+        \\3. Keep memories specific and self-contained.
         \\
         \\Nothing leaves the local machine. No API keys required.
         \\

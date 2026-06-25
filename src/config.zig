@@ -1,5 +1,10 @@
 const std = @import("std");
 
+const c = @cImport({
+    @cInclude("stdlib.h");
+    @cInclude("unistd.h");
+});
+
 pub const Config = struct {
     default_wing: [:0]const u8 = "default",
     database_path: [:0]const u8 = "fast-mempalace.db",
@@ -108,6 +113,52 @@ pub fn load(allocator: std.mem.Allocator, io: std.Io) !Config {
     }
     
     return cfg;
+}
+
+/// Apply environment-variable overrides. These take precedence over the yaml
+/// and defaults, and are how the Claude Code plugin pins a single global palace
+/// and model regardless of which project directory the agent is launched in:
+///   FAST_MEMPALACE_DB     → database_path
+///   FAST_MEMPALACE_MODEL  → model_path
+///   FAST_MEMPALACE_WING   → default_wing
+pub fn applyEnvOverrides(cfg: *Config, allocator: std.mem.Allocator) void {
+    overrideZ(&cfg.database_path, "fast-mempalace.db", "FAST_MEMPALACE_DB", allocator);
+    overrideZ(&cfg.model_path, "lib/minilm.gguf", "FAST_MEMPALACE_MODEL", allocator);
+    overrideZ(&cfg.default_wing, "default", "FAST_MEMPALACE_WING", allocator);
+    resolveModelPath(cfg, allocator);
+}
+
+fn fileExists(path: [:0]const u8) bool {
+    return c.access(path.ptr, 0) == 0; // F_OK
+}
+
+/// If the configured model isn't where it points, fall back to the curl
+/// installer's standard location so an installed binary finds its model with
+/// zero config: ~/.fast-mempalace/lib/minilm.gguf. (The Homebrew formula sets
+/// FAST_MEMPALACE_MODEL explicitly via a wrapper, so it never reaches here.)
+fn resolveModelPath(cfg: *Config, allocator: std.mem.Allocator) void {
+    if (fileExists(cfg.model_path)) return;
+
+    const home_raw = c.getenv("HOME") orelse return;
+    const home = std.mem.span(home_raw);
+    const tmp = std.fmt.allocPrint(allocator, "{s}/.fast-mempalace/lib/minilm.gguf", .{home}) catch return;
+    defer allocator.free(tmp);
+    const cand = allocator.dupeZ(u8, tmp) catch return;
+    if (fileExists(cand)) {
+        if (!std.mem.eql(u8, cfg.model_path, "lib/minilm.gguf")) allocator.free(cfg.model_path);
+        cfg.model_path = cand;
+    } else {
+        allocator.free(cand);
+    }
+}
+
+fn overrideZ(field: *[:0]const u8, default_lit: []const u8, env_key: [:0]const u8, allocator: std.mem.Allocator) void {
+    const raw = c.getenv(env_key.ptr) orelse return;
+    const val = std.mem.span(raw);
+    if (val.len == 0) return;
+    const dup = allocator.dupeZ(u8, val) catch return;
+    if (!std.mem.eql(u8, field.*, default_lit)) allocator.free(field.*);
+    field.* = dup;
 }
 
 const String = []const u8;
